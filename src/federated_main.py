@@ -54,23 +54,25 @@ if __name__ == '__main__':
             len_in *= x
             global_model = MLP(dim_in=len_in, dim_hidden=64,
                                dim_out=args.num_classes)
+
     else:
         exit('Error: unrecognized model')
 
     # Set the model to train and send it to device.
     global_model.to(device)
-    global_model.train()
+    #global_model.train() # unnecessary?
     print(global_model)
 
     # copy weights
     global_weights = global_model.state_dict()
 
     # Training
-    train_loss, train_accuracy = [], []
-    val_acc_list, net_list = [], []
-    cv_loss, cv_acc = [], []
+    train_loss = []
+    #train_accuracy = []
+    #val_acc_list, net_list = [], []
+    #cv_loss, cv_acc = [], []
     print_every = 2
-    val_loss_pre, counter = 0, 0
+    #val_loss_pre, counter = 0, 0
 
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
@@ -89,7 +91,9 @@ if __name__ == '__main__':
             local_losses.append(copy.deepcopy(loss))
 
         # update global weights
-        global_weights = average_weights(local_weights)
+        #global_weights = average_weights(local_weights)
+        n_k = [len(user_groups[idx_user]) for idx_user in idxs_users]
+        global_weights = average_weights(local_weights, n_k)
 
         # update global weights
         global_model.load_state_dict(global_weights)
@@ -98,27 +102,27 @@ if __name__ == '__main__':
         train_loss.append(loss_avg)
 
         # Calculate avg training accuracy over all users at every epoch
-        list_acc, list_loss = [], []
-        global_model.eval()
-        for c in range(args.num_users):
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
-            acc, loss = local_model.inference(model=global_model)
-            list_acc.append(acc)
-            list_loss.append(loss)
-        train_accuracy.append(sum(list_acc)/len(list_acc))
+        #list_acc, list_loss = [], []
+        #global_model.eval()
+        #for c in range(args.num_users):
+        #    local_model = LocalUpdate(args=args, dataset=train_dataset,
+        #                              idxs=user_groups[idx], logger=logger)
+        #    acc, loss = local_model.inference(model=global_model)
+        #    list_acc.append(acc)
+        #    list_loss.append(loss)
+        #train_accuracy.append(sum(list_acc)/len(list_acc))
 
         # print global training loss after every 'i' rounds
         if (epoch+1) % print_every == 0:
             print(f' \nAvg Training Stats after {epoch+1} global rounds:')
             print(f'Training Loss : {np.mean(np.array(train_loss))}')
-            print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
+            #print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
     # Test inference after completion of training
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
 
     print(f' \n Results after {args.epochs} global rounds of training:')
-    print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
+    #print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
 
     # Saving the objects train_loss and train_accuracy:
@@ -127,7 +131,8 @@ if __name__ == '__main__':
                args.local_ep, args.local_bs)
 
     with open(file_name, 'wb') as f:
-        pickle.dump([train_loss, train_accuracy], f)
+        #pickle.dump([train_loss, train_accuracy], f)
+        pickle.dump([train_loss], f)
 
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
 
@@ -147,11 +152,11 @@ if __name__ == '__main__':
                        args.iid, args.local_ep, args.local_bs))
 
     # Plot Average Accuracy vs Communication rounds
-    plt.figure()
-    plt.title('Average Accuracy vs Communication rounds')
-    plt.plot(range(len(train_accuracy)), train_accuracy, color='k')
-    plt.ylabel('Average Accuracy')
-    plt.xlabel('Communication Rounds')
-    plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
-                format(args.dataset, args.model, args.epochs, args.frac,
-                       args.iid, args.local_ep, args.local_bs))
+    #plt.figure()
+    #plt.title('Average Accuracy vs Communication rounds')
+    #plt.plot(range(len(train_accuracy)), train_accuracy, color='k')
+    #plt.ylabel('Average Accuracy')
+    #plt.xlabel('Communication Rounds')
+    #plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
+    #            format(args.dataset, args.model, args.epochs, args.frac,
+    #                   args.iid, args.local_ep, args.local_bs))

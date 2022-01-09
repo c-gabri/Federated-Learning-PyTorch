@@ -72,15 +72,19 @@ def get_dataset(args):
     return train_dataset, test_dataset, user_groups
 
 
-def average_weights(w):
+#def average_weights(w):
+def average_weights(w, n_k):
     """
     Returns the average of the weights.
     """
     w_avg = copy.deepcopy(w[0])
     for key in w_avg.keys():
+        w_avg[key] *= n_k[0]
         for i in range(1, len(w)):
-            w_avg[key] += w[i][key]
-        w_avg[key] = torch.div(w_avg[key], len(w))
+            #w_avg[key] += w[i][key]
+            w_avg[key] += n_k[i]*w[i][key]
+        #w_avg[key] = torch.div(w_avg[key], len(w))
+        w_avg[key] /= sum(n_k)
     return w_avg
 
 
@@ -96,6 +100,7 @@ def exp_details(args):
         print('    IID')
     else:
         print('    Non-IID')
+    print(f'    FedIR              : {args.fedir}')
     print(f'    Fraction of users  : {args.frac}')
     print(f'    Local Batch size   : {args.local_bs}')
     print(f'    Local Epochs       : {args.local_ep}\n')

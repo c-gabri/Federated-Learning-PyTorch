@@ -20,8 +20,8 @@ class DatasetSplit(Dataset):
 
     def __getitem__(self, item):
         image, label = self.dataset[self.idxs[item]]
-        return torch.tensor(image), torch.tensor(label)
-
+        #return torch.tensor(image), torch.tensor(label)
+        return image.clone().detach(), torch.tensor(label)
 
 class LocalUpdate(object):
     def __init__(self, args, dataset, idxs, logger):
@@ -30,8 +30,16 @@ class LocalUpdate(object):
         self.trainloader, self.validloader, self.testloader = self.train_val_test(
             dataset, list(idxs))
         self.device = 'cuda' if args.gpu else 'cpu'
-        # Default criterion set to NLL loss function
-        self.criterion = nn.NLLLoss().to(self.device)
+
+        if self.args.fedir:
+            labels = set(dataset.targets)
+            p = torch.tensor([(torch.tensor(dataset.targets) == label).sum() for label in labels]) / len(dataset.targets)
+            q = torch.tensor([(torch.tensor(dataset.targets)[list(idxs)] == label).sum() for label in labels]) / len(torch.tensor(dataset.targets)[list(idxs)])
+            print('w = %s' %  (p/q))
+            self.criterion = nn.NLLLoss(weight=p/q, reduction='mean').to(self.device)
+        else:
+            # Default criterion set to NLL loss function
+            self.criterion = nn.NLLLoss().to(self.device)
 
     def train_val_test(self, dataset, idxs):
         """
@@ -39,16 +47,18 @@ class LocalUpdate(object):
         and user indexes.
         """
         # split indexes for train, validation, and test (80, 10, 10)
-        idxs_train = idxs[:int(0.8*len(idxs))]
-        idxs_val = idxs[int(0.8*len(idxs)):int(0.9*len(idxs))]
-        idxs_test = idxs[int(0.9*len(idxs)):]
+        #idxs_train = idxs[:int(0.8*len(idxs))]
+        #idxs_val = idxs[int(0.8*len(idxs)):int(0.9*len(idxs))]
+        #idxs_test = idxs[int(0.9*len(idxs)):]
+        idxs_train = idxs
 
         trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
                                  batch_size=self.args.local_bs, shuffle=True)
-        validloader = DataLoader(DatasetSplit(dataset, idxs_val),
-                                 batch_size=int(len(idxs_val)/10), shuffle=False)
-        testloader = DataLoader(DatasetSplit(dataset, idxs_test),
-                                batch_size=int(len(idxs_test)/10), shuffle=False)
+        #validloader = DataLoader(DatasetSplit(dataset, idxs_val),
+        #                         batch_size=int(len(idxs_val)/10), shuffle=False)
+        #testloader = DataLoader(DatasetSplit(dataset, idxs_test),
+        #                        batch_size=int(len(idxs_test)/10), shuffle=False)
+        validloader, testloader = None, None
         return trainloader, validloader, testloader
 
     def update_weights(self, model, global_round):
@@ -59,7 +69,7 @@ class LocalUpdate(object):
         # Set optimizer for the local updates
         if self.args.optimizer == 'sgd':
             optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr,
-                                        momentum=0.5)
+                                        momentum=self.args.momentum)
         elif self.args.optimizer == 'adam':
             optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr,
                                          weight_decay=1e-4)
