@@ -4,9 +4,10 @@
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
+import numpy as np
 
-
+'''
 class DatasetSplit(Dataset):
     """An abstract Dataset class wrapped around Pytorch Dataset class.
     """
@@ -22,26 +23,32 @@ class DatasetSplit(Dataset):
         image, label = self.dataset[self.idxs[item]]
         #return torch.tensor(image), torch.tensor(label)
         return image.clone().detach(), torch.tensor(label)
+'''
 
 class LocalUpdate(object):
     def __init__(self, args, dataset, idxs, logger):
         self.args = args
         self.logger = logger
-        self.trainloader, self.validloader, self.testloader = self.train_val_test(
-            dataset, list(idxs))
+        self.dataset = dataset
+        self.idxs = list(idxs)
+        #self.trainloader, self.validloader, self.testloader = self.train_val_test(
+        #    dataset, self.idxs)
         self.device = 'cuda' if args.gpu else 'cpu'
+
+        if self.args.vcsize == 0:
+            self.trainloader = DataLoader(Subset(self.dataset, self.idxs), batch_size=self.args.local_bs, shuffle=True)
 
         if self.args.fedir:
             labels = set(dataset.targets)
             p = torch.tensor([(torch.tensor(dataset.targets) == label).sum() for label in labels]) / len(dataset.targets)
-            q = torch.tensor([(torch.tensor(dataset.targets)[list(idxs)] == label).sum() for label in labels]) / len(torch.tensor(dataset.targets)[list(idxs)])
+            q = torch.tensor([(torch.tensor(dataset.targets)[self.idxs] == label).sum() for label in labels]) / len(torch.tensor(dataset.targets)[self.idxs])
             print('w = %s' %  (p/q))
             self.criterion = nn.NLLLoss(weight=p/q, reduction='mean').to(self.device)
         else:
             # Default criterion set to NLL loss function
             self.criterion = nn.NLLLoss().to(self.device)
 
-    def train_val_test(self, dataset, idxs):
+    #def train_val_test(self, dataset, idxs):
         """
         Returns train, validation and test dataloaders for a given dataset
         and user indexes.
@@ -50,16 +57,16 @@ class LocalUpdate(object):
         #idxs_train = idxs[:int(0.8*len(idxs))]
         #idxs_val = idxs[int(0.8*len(idxs)):int(0.9*len(idxs))]
         #idxs_test = idxs[int(0.9*len(idxs)):]
-        idxs_train = idxs
+        #idxs_train = idxs
 
-        trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
-                                 batch_size=self.args.local_bs, shuffle=True)
+        #trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
+        #                         batch_size=self.args.local_bs, shuffle=True)
         #validloader = DataLoader(DatasetSplit(dataset, idxs_val),
         #                         batch_size=int(len(idxs_val)/10), shuffle=False)
         #testloader = DataLoader(DatasetSplit(dataset, idxs_test),
         #                        batch_size=int(len(idxs_test)/10), shuffle=False)
-        validloader, testloader = None, None
-        return trainloader, validloader, testloader
+        #validloader, testloader = None, None
+        #return trainloader, validloader, testloader
 
     def update_weights(self, model, global_round):
         # Set mode to train model
@@ -73,6 +80,11 @@ class LocalUpdate(object):
         elif self.args.optimizer == 'adam':
             optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr,
                                          weight_decay=1e-4)
+
+        if self.args.vcsize > 0:
+            replace = False if len(self.idxs) >= self.args.vcsize else True
+            idxsvc = np.random.choice(self.idxs, self.args.vcsize, replace=replace)
+            self.trainloader = DataLoader(Subset(self.dataset, idxsvc), batch_size=self.args.local_bs, shuffle=True)
 
         for iter in range(self.args.local_ep):
             batch_loss = []

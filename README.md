@@ -62,7 +62,8 @@ The default values for various paramters parsed to the experiment are given in `
 * ```--local_ep:``` Number of local training epochs in each user. Default is 10.
 * ```--local_bs:``` Batch size of local updates in each user. Default is 10.
 * ```--unequal:```  Used in non-iid setting. Option to split the data amongst users equally or unequally. Default set to 0 for equal splits. Set to 1 for unequal splits.
-* ```--fedir:```    Use the FedIR algorithm from "Federated Visual Classification with Real-World Data Distribution"
+* ```--fedir:```    Use the FedIR algorithm (from "Federated Visual Classification with Real-World Data Distribution")
+* ```--vcsize:```   Virtual Client size for the FedVC algorithm from "Federated Visual Classification with Real-World Data Distribution"). Default is 0.
 
 ## Results on MNIST
 #### Baseline Experiment:

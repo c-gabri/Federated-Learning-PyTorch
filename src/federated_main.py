@@ -74,13 +74,21 @@ if __name__ == '__main__':
     print_every = 2
     #val_loss_pre, counter = 0, 0
 
+    if args.vcsize > 0:
+        p = p = np.array([len(user_groups[user]) for user in user_groups])
+        p = p / p.sum()
+        print('p = %s' % p)
+
     for epoch in tqdm(range(args.epochs)):
         local_weights, local_losses = [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
         global_model.train()
         m = max(int(args.frac * args.num_users), 1)
-        idxs_users = np.random.choice(range(args.num_users), m, replace=False)
+        if args.vcsize > 0:
+            idxs_users = np.random.choice(range(args.num_users), m, replace=False, p=p)
+        else:
+            idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
         for idx in idxs_users:
             local_model = LocalUpdate(args=args, dataset=train_dataset,
