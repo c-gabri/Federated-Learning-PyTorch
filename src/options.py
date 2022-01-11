@@ -21,18 +21,22 @@ def args_parser():
                         help="local batch size: B")
     parser.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
-    parser.add_argument('--momentum', type=float, default=0.5,
-                        help='SGD momentum (default: 0.5)')
+    parser.add_argument('--server_lr', type=float, default=1,
+                        help='server learning rate')
+    parser.add_argument('--momentum', type=float, default=0,
+                        help='SGD momentum (default: 0)')
     parser.add_argument('--hetero', type=float, default=0,
                         help='System heterogeneity (default: 0)')
     parser.add_argument('--fedsgd', action='store_true', default=False,
-                        help='use the FedSGD algorithm (default: False)')
+                        help='use FedSGD algorithm (default: False)')
+    parser.add_argument('--fedavgm_momentum', type=float, default=0,
+                        help='use FedAvgM algorithm with specified server momentum (default: 0, no FedAvgM)')
     parser.add_argument('--fedir', action='store_true', default=False,
-                        help='use the FedIR algorithm (default: False)')
+                        help='use FedIR algorithm (default: no FedIR)')
     parser.add_argument('--fedvc_nvc', type=int, default=0,
-                        help='use the FedVC algorithm with specified client size (default: 0, no FedVC)')
+                        help='use FedVC algorithm with specified client size (default: 0, no FedVC)')
     parser.add_argument('--fedprox_mu', type=float, default=0,
-                        help='use the FedProx algorithm with specified mu (default: 0, no FedProx)')
+                        help='use FedProx algorithm with specified mu (default: 0, no FedProx)')
 
     # model arguments
     parser.add_argument('--model', type=str, default='mlp', help='model name')
@@ -72,7 +76,9 @@ def args_parser():
     parser.add_argument('--seed', type=int, default=1, help='random seed')
 
     args = parser.parse_args()
-    if args.fedvc_nvc > 0:
+    if args.fedvc_nvc > 0 or args.fedsgd:
         args.local_ep = 1
+    if args.fedsgd:
+        args.local_bs = 0
 
     return args

@@ -35,9 +35,10 @@ class LocalUpdate(object):
         #self.trainloader, self.validloader, self.testloader = self.train_val_test(
         #    dataset, self.idxs)
         self.device = 'cuda' if args.gpu else 'cpu'
+        self.local_bs = self.args.local_bs if self.args.local_bs > 0 else len(idxs)
 
         if self.args.fedvc_nvc == 0:
-            self.trainloader = DataLoader(Subset(self.dataset, self.idxs), batch_size=self.args.local_bs, shuffle=True)
+            self.trainloader = DataLoader(Subset(self.dataset, self.idxs), batch_size=self.local_bs, shuffle=True)
 
         if self.args.fedir:
             labels = set(dataset.targets)
@@ -61,7 +62,7 @@ class LocalUpdate(object):
         #idxs_train = idxs
 
         #trainloader = DataLoader(DatasetSplit(dataset, idxs_train),
-        #                         batch_size=self.args.local_bs, shuffle=True)
+        #                         batch_size=self.local_bs, shuffle=True)
         #validloader = DataLoader(DatasetSplit(dataset, idxs_val),
         #                         batch_size=int(len(idxs_val)/10), shuffle=False)
         #testloader = DataLoader(DatasetSplit(dataset, idxs_test),
@@ -93,7 +94,7 @@ class LocalUpdate(object):
         if self.args.fedvc_nvc > 0:
             replace = False if len(self.idxs) >= self.args.fedvc_nvc else True
             idxsvc = np.random.choice(self.idxs, self.args.fedvc_nvc, replace=replace)
-            self.trainloader = DataLoader(Subset(self.dataset, idxsvc), batch_size=self.args.local_bs, shuffle=True)
+            self.trainloader = DataLoader(Subset(self.dataset, idxsvc), batch_size=self.local_bs, shuffle=True)
 
         if self.args.fedprox_mu > 0:
             model_old = copy.deepcopy(model).to(self.device)
