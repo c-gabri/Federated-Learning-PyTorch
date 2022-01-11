@@ -71,40 +71,41 @@ if __name__ == '__main__':
     #train_accuracy = []
     #val_acc_list, net_list = [], []
     #cv_loss, cv_acc = [], []
-    print_every = 2
+    print_every = 1
     #val_loss_pre, counter = 0, 0
 
-    if args.vcsize > 0:
+    if args.fedvc_nvc > 0:
         p = p = np.array([len(user_groups[user]) for user in user_groups])
         p = p / p.sum()
         print('p = %s' % p)
 
     for epoch in tqdm(range(args.epochs)):
-        local_weights, local_losses = [], []
-        print(f'\n | Global Training Round : {epoch+1} |\n')
+        local_weights, local_losses, n_k = [], [], []
+        #print(f'\n | Global Training Round : {epoch+1} |\n')
 
         global_model.train()
         m = max(int(args.frac * args.num_users), 1)
-        if args.vcsize > 0:
+        if args.fedvc_nvc > 0:
             idxs_users = np.random.choice(range(args.num_users), m, replace=False, p=p)
         else:
             idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
         for idx in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
-            w, loss = local_model.update_weights(
-                model=copy.deepcopy(global_model), global_round=epoch)
-            local_weights.append(copy.deepcopy(w))
-            local_losses.append(copy.deepcopy(loss))
+            local_model = LocalUpdate(args=args, dataset=train_dataset, idxs=user_groups[idx], logger=logger)
+            w, loss = local_model.update_weights(model=copy.deepcopy(global_model), global_round=epoch)
 
-        # update global weights
-        #global_weights = average_weights(local_weights)
-        n_k = [len(user_groups[idx_user]) for idx_user in idxs_users]
-        global_weights = average_weights(local_weights, n_k)
+            if w is not None:
+                local_weights.append(copy.deepcopy(w))
+                local_losses.append(copy.deepcopy(loss))
+                n_k.append(len(user_groups[idx]))
 
-        # update global weights
-        global_model.load_state_dict(global_weights)
+        if len(local_weights) > 0:
+            # update global weights
+            #n_k = [len(user_groups[idx_user]) for idx_user in idxs_users]
+            global_weights = average_weights(local_weights, n_k)
+
+            # update global weights
+            global_model.load_state_dict(global_weights)
 
         loss_avg = sum(local_losses) / len(local_losses)
         train_loss.append(loss_avg)

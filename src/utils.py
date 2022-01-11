@@ -90,19 +90,18 @@ def average_weights(w, n_k):
 
 def exp_details(args):
     print('\nExperimental details:')
-    print(f'    Model              : {args.model}')
-    print(f'    Optimizer          : {args.optimizer}')
-    print(f'    Learning rate      : {args.lr}')
-    print(f'    Global Rounds      : {args.epochs}\n')
+    print(f'    Model                  : {args.model}')
+    print(f'    Optimizer              : {args.optimizer}')
+    print(f'    Learning rate          : {args.lr}')
+    print(f'    Communication rounds   : {args.epochs}\n')
 
     print('    Federated parameters:')
-    if args.iid:
-        print('    IID')
-    else:
-        print('    Non-IID')
-    print(f'    FedIR              : {args.fedir}')
-    print(f'    FedVC size         : {args.vcsize}')
-    print(f'    Fraction of users  : {args.frac}')
-    print(f'    Local Batch size   : {args.local_bs}')
-    print(f'    Local Epochs       : {args.local_ep}\n')
+    print(f'    Fraction of users      : {args.frac}')
+    print(f'    Local batch size       : {args.local_bs}')
+    print(f'    [Maximum] local epochs : {args.local_ep}')
+    print(f'    IID                    : {args.iid}')
+    print(f'    System heterogeneity   : {args.hetero}')
+    print(f'    FedIR                  : {args.fedir}')
+    print(f'    FedVC client size      : {args.fedvc_nvc}')
+    print(f'    FedProx mu             : {args.fedprox_mu}\n')
     return

@@ -23,10 +23,16 @@ def args_parser():
                         help='learning rate')
     parser.add_argument('--momentum', type=float, default=0.5,
                         help='SGD momentum (default: 0.5)')
+    parser.add_argument('--hetero', type=float, default=0,
+                        help='System heterogeneity (default: 0)')
+    parser.add_argument('--fedsgd', action='store_true', default=False,
+                        help='use the FedSGD algorithm (default: False)')
     parser.add_argument('--fedir', action='store_true', default=False,
-                        help='use Federated Importance Reweighting')
-    parser.add_argument('--vcsize', type=int, default=0,
-                        help='Federated Virtual Clients size (default: 0)')
+                        help='use the FedIR algorithm (default: False)')
+    parser.add_argument('--fedvc_nvc', type=int, default=0,
+                        help='use the FedVC algorithm with specified client size (default: 0, no FedVC)')
+    parser.add_argument('--fedprox_mu', type=float, default=0,
+                        help='use the FedProx algorithm with specified mu (default: 0, no FedProx)')
 
     # model arguments
     parser.add_argument('--model', type=str, default='mlp', help='model name')
@@ -66,7 +72,7 @@ def args_parser():
     parser.add_argument('--seed', type=int, default=1, help='random seed')
 
     args = parser.parse_args()
-    if args.vcsize > 0:
+    if args.fedvc_nvc > 0:
         args.local_ep = 1
 
     return args

@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, Subset
 import numpy as np
+import copy
 
 '''
 class DatasetSplit(Dataset):
@@ -35,7 +36,7 @@ class LocalUpdate(object):
         #    dataset, self.idxs)
         self.device = 'cuda' if args.gpu else 'cpu'
 
-        if self.args.vcsize == 0:
+        if self.args.fedvc_nvc == 0:
             self.trainloader = DataLoader(Subset(self.dataset, self.idxs), batch_size=self.args.local_bs, shuffle=True)
 
         if self.args.fedir:
@@ -81,12 +82,23 @@ class LocalUpdate(object):
             optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr,
                                          weight_decay=1e-4)
 
-        if self.args.vcsize > 0:
-            replace = False if len(self.idxs) >= self.args.vcsize else True
-            idxsvc = np.random.choice(self.idxs, self.args.vcsize, replace=replace)
+        if self.args.hetero > 0:
+                straggler = np.random.binomial(1, self.args.hetero)
+                if straggler and self.args.fedprox_mu == 0:
+                    return None, None
+                local_ep = np.random.randint(1, self.args.local_ep) if straggler else self.args.local_ep
+        else:
+                local_ep = self.args.local_ep
+
+        if self.args.fedvc_nvc > 0:
+            replace = False if len(self.idxs) >= self.args.fedvc_nvc else True
+            idxsvc = np.random.choice(self.idxs, self.args.fedvc_nvc, replace=replace)
             self.trainloader = DataLoader(Subset(self.dataset, idxsvc), batch_size=self.args.local_bs, shuffle=True)
 
-        for iter in range(self.args.local_ep):
+        if self.args.fedprox_mu > 0:
+            model_old = copy.deepcopy(model).to(self.device)
+
+        for iter in range(local_ep):
             batch_loss = []
             for batch_idx, (images, labels) in enumerate(self.trainloader):
                 images, labels = images.to(self.device), labels.to(self.device)
@@ -94,12 +106,20 @@ class LocalUpdate(object):
                 model.zero_grad()
                 log_probs = model(images)
                 loss = self.criterion(log_probs, labels)
+
+                if self.args.fedprox_mu > 0:
+                    if iter > 0:
+                        w_diff = torch.tensor(0., device=self.device)
+                        for w, w_t in zip(model_old.parameters(), model.parameters()):
+                            w_diff += torch.pow(torch.norm(w - w_t), 2)
+                        loss += self.args.fedprox_mu / 2. * w_diff
+
                 loss.backward()
                 optimizer.step()
 
                 if self.args.verbose and (batch_idx % 10 == 0):
-                    print('| Global Round : {} | Local Epoch : {} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                        global_round, iter, batch_idx * len(images),
+                    print('| Global Round : {} | Local Epoch : {}/{} | [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                        global_round, iter, local_ep, batch_idx * len(images),
                         len(self.trainloader.dataset),
                         100. * batch_idx / len(self.trainloader), loss.item()))
                 self.logger.add_scalar('loss', loss.item())
