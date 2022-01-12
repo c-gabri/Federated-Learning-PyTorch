@@ -154,7 +154,7 @@ class LocalUpdate(object):
         return accuracy, loss
 
 
-def test_inference(args, model, test_dataset):
+def test_inference(args, model, test_dataset, test_user_groups):
     """ Returns the test accuracy and loss.
     """
 
@@ -162,9 +162,8 @@ def test_inference(args, model, test_dataset):
     loss, total, correct = 0.0, 0.0, 0.0
 
     device = 'cuda' if args.gpu else 'cpu'
-    criterion = nn.NLLLoss().to(device)
-    testloader = DataLoader(test_dataset, batch_size=128,
-                            shuffle=False)
+    criterion = nn.NLLLoss().to(device) # use same criterion used during training?
+    testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 
     for batch_idx, (images, labels) in enumerate(testloader):
         images, labels = images.to(device), labels.to(device)
@@ -181,4 +180,33 @@ def test_inference(args, model, test_dataset):
         total += len(labels)
 
     accuracy = correct/total
-    return accuracy, loss
+
+    avg_accuracy, avg_loss = 0., 0.
+
+    for client in range(len(test_user_groups)):
+        loss, total, correct = 0.0, 0.0, 0.0
+
+        local_bs = args.local_bs if args.local_bs > 0 else len(test_user_groups[client])
+        testloader = DataLoader(Subset(test_dataset, test_user_groups[client]), batch_size=local_bs, shuffle=False)
+
+        for batch_idx, (images, labels) in enumerate(testloader):
+            images, labels = images.to(device), labels.to(device)
+
+            # Inference
+            outputs = model(images)
+            batch_loss = criterion(outputs, labels)
+            loss += batch_loss.item()
+
+            # Prediction
+            _, pred_labels = torch.max(outputs, 1)
+            pred_labels = pred_labels.view(-1)
+            correct += torch.sum(torch.eq(pred_labels, labels)).item()
+            total += len(labels)
+
+        avg_accuracy += len(labels) * correct / total
+        avg_loss += len(labels) * loss
+
+    avg_accuracy /= len(test_dataset)
+    avg_loss /= len(test_dataset)
+
+    return accuracy, loss, avg_accuracy, avg_loss

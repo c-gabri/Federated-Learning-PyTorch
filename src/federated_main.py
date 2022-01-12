@@ -36,6 +36,12 @@ if __name__ == '__main__':
     # load dataset and user groups
     train_dataset, test_dataset, user_groups = get_dataset(args)
 
+    # just for testing, replace with real test split
+    test_user_groups = {}
+    for i in range(args.num_users):
+        N = int(len(test_dataset)/args.num_users)
+        test_user_groups[i] = list(range(i*N, (i+1)*N))
+
     # BUILD MODEL
     if args.model == 'cnn':
         # Convolutional neural netork
@@ -138,11 +144,14 @@ if __name__ == '__main__':
             #print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
     # Test inference after completion of training
-    test_acc, test_loss = test_inference(args, global_model, test_dataset)
+    test_acc, test_loss, test_avg_acc, test_avg_loss = test_inference(args, global_model, test_dataset, test_user_groups)
 
     print(f' \n Results after {args.epochs} global rounds of training:')
     #print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
+    print("|---- Test Loss: {:.6f}".format(test_loss))
+    print("|---- Average Test Accuracy: {:.2f}%".format(100*test_avg_acc))
+    print("|---- Average Test Loss: {:.6f}".format(test_avg_loss))
 
     # Saving the objects train_loss and train_accuracy:
     file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
