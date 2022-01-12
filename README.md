@@ -48,7 +48,7 @@ You can change the default values of other parameters to simulate different cond
 The default values for various paramters parsed to the experiment are given in ```options.py```. Details are given some of those parameters:
 
 * ```--dataset:```  Default: 'mnist'. Options: 'mnist', 'fmnist', 'cifar'
-* ```--model:```    Default: 'mlp'. Options: 'mlp', 'cnn'
+* ```--model:```    Default: 'mlp'. Options: 'mlp', 'cnn', 'lenet', 'resnet'
 * ```--gpu:```      Default: None (runs on CPU). Can also be set to the specific gpu id.
 * ```--epochs:```   Number of rounds of training.
 * ```--lr:```       Learning rate set to 0.01 by default.
