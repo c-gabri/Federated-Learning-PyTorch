@@ -27,7 +27,7 @@ if __name__ == '__main__':
     logger = SummaryWriter('../logs')
 
     args = args_parser()
-    exp_details(args)
+    #exp_details(args)
 
     if args.gpu:
         torch.cuda.set_device(args.gpu)
@@ -61,7 +61,9 @@ if __name__ == '__main__':
     # Set the model to train and send it to device.
     global_model.to(device)
     #global_model.train() # unnecessary?
-    print(global_model)
+    #print(global_model)
+
+    exp_details(args, global_model)
 
     # copy weights
     global_weights = global_model.state_dict()
@@ -105,7 +107,15 @@ if __name__ == '__main__':
             global_weights = average_weights(local_weights, n_k)
 
             # update global weights
-            global_model.load_state_dict(global_weights)
+            #global_model.load_state_dict(global_weights)
+            if epoch == 0:
+                v = copy.deepcopy(global_model.state_dict())
+                for key in v.keys():
+                    v[key] -= global_weights[key]
+            else:
+                for key in v.keys():
+                    v[key] = args.fedavgm_momentum * v[key] + global_model.state_dict()[key] - global_weights[key]
+                    global_model.state_dict()[key] -= args.server_lr * v[key]
 
         loss_avg = sum(local_losses) / len(local_losses)
         train_loss.append(loss_avg)

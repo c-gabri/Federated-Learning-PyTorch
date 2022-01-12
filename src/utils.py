@@ -88,22 +88,33 @@ def average_weights(w, n_k):
     return w_avg
 
 
-def exp_details(args):
+def exp_details(args, model):
+    model = str(model).replace('\n','\n                             ')
+
     print('\nExperimental details:')
-    print(f'    Model                  : {args.model}')
+    print('    General parameters:')
+    print(f'    Epochs                 : {args.epochs}')
+    print(f'    Device                 : {args.gpu}')
     print(f'    Optimizer              : {args.optimizer}')
     print(f'    Learning rate          : {args.lr}')
-    print(f'    Communication rounds   : {args.epochs}\n')
+    print(f'    Momentum               : {args.momentum}')
+    print(f'    Dataset                : {args.dataset}')
+    print(f'    Model                  : {model}')
+    print('')
 
     print('    Federated parameters:')
-    print(f'    Fraction of users      : {args.frac}')
-    print(f'    Local batch size       : {args.local_bs}')
+    print(f'    Number of clients      : {args.num_users}')
+    print(f'    Fraction of clients    : {args.frac}')
+    print(f'    Client batch size      : {args.local_bs}')
+    print(f'    Client epochs          : {args.local_ep}')
     print(f'    Server learning rate   : {args.server_lr}')
-    print(f'    [Maximum] local epochs : {args.local_ep}')
     print(f'    IID                    : {args.iid}')
+    print(f'    Imbalance              : {args.unequal}')
     print(f'    System heterogeneity   : {args.hetero}')
     print(f'    FedAvgM momentum       : {args.fedavgm_momentum}')
     print(f'    FedIR                  : {args.fedir}')
     print(f'    FedVC client size      : {args.fedvc_nvc}')
-    print(f'    FedProx mu             : {args.fedprox_mu}\n')
+    print(f'    FedProx mu             : {args.fedprox_mu}')
+    print('')
+
     return
