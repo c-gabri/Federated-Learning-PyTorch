@@ -9,6 +9,14 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * [3] [Federated Visual Classification with Real-World Data Distribution](https://arxiv.org/abs/2003.08082): FedAvg, FedIR, FedVC
 * [4] [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
 
+## Requirements
+* torch==1.10.0
+* torchvision==0.11.1
+* numpy==1.17.4
+* tensorboardX==2.4.1
+* matplotlib==3.4.3
+* tqdm==4.62.3
+
 ## Usage
 ### usage: ```main.py [ARGUMENTS]```
 
@@ -19,10 +27,11 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
                         type of optimizer (default: ```sgd```)
 * ```--lr LR```:               learning rate (default: ```0.01```)
 * ```--momentum MOMENTUM```:   SGD momentum (default: ```0```)
-* ```--dataset DATASET```:     name of dataset (default: ```cifar```)
+* ```--dataset```: {cifar10,mnist}
+                        name of dataset (default: ```cifar10```)
 * ```--gpu GPU```:             To use cuda, set to a specific GPU ID. Default set to
                         use CPU. (default: ```None```)
-* ```--model MODEL```:         model name (default: ```cnn```)
+* ```--model```: {cnn,mlp}     model name (default: ```cnn```)
 * ```--num_classes NUM_CLASSES```:
                         number of classes (default: ```10```)
 * ```--verbose```, ```-v```:         verbose (default: ```True```)
@@ -67,12 +76,6 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
                         imagenet, 64 for omiglot. (default: ```32```)
 * ```--max_pool MAX_POOL```:   Whether use max pooling rather than strided
                         convolutions (default: ```True```)
-
-## Requirments
-Install all the packages from requirements.txt
-* Python3
-* Pytorch
-* Torchvision
 
 ## Data
 * Download train and test datasets manually or they will be automatically downloaded from torchvision datasets.
