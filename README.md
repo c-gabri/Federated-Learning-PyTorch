@@ -1,4 +1,5 @@
 # Federated Learning: FedSGD, FedAvg, FedAvgM, FedIR, FedVC, FedProx (PyTorch)
+![federated_learning](https://1.bp.blogspot.com/-K65Ed68KGXk/WOa9jaRWC6I/AAAAAAAABsM/gglycD_anuQSp-i67fxER1FOlVTulvV2gCLcB/s1600/FederatedLearning_FinalFiles_Flow%2BChart1.png)
 
 ## Reference papers
 * [1] [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedSGD, FedAvg
