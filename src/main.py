@@ -47,7 +47,7 @@ if __name__ == '__main__':
             global_model = CNNMnist(args=args)
         elif args.dataset == 'fmnist':
             global_model = CNNFashion_Mnist(args=args)
-        elif args.dataset == 'cifar':
+        elif args.dataset == 'cifar10':
             global_model = CNNCifar(args=args)
     elif args.model == 'mlp':
         # Multi-layer preceptron

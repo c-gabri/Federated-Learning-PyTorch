@@ -22,11 +22,11 @@ def args_parser():
                         help='learning rate')
     args_general.add_argument('--momentum', type=float, default=0,
                         help='SGD momentum')
-    args_general.add_argument('--dataset', type=str, default='cifar',
-                        help='name of dataset')
+    args_general.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10','mnist'],
+                        help='name of dataset') # TODO: remove or implement fmnist
     args_general.add_argument('--gpu', type=int, default=None,
                         help="To use cuda, set to a specific GPU ID. Default set to use CPU.")
-    args_general.add_argument('--model', type=str, default='cnn',
+    args_general.add_argument('--model', type=str, default='cnn', choices=['cnn','mlp'],
                         help='model name')
     args_general.add_argument('--num_classes', type=int, default=10,
                         help="number of classes") # TODO: remove (get it from dataset)
