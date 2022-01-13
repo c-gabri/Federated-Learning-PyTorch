@@ -1,48 +1,10 @@
-# Federated-Learning (PyTorch)
+# Federated Learning: FedAvg, FedAvgM, FedIR, FedVC, FedProx (PyTorch)
 
-Implementation of the vanilla federated learning paper : [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629).
-
-
-Experiments are produced on MNIST, Fashion MNIST and CIFAR10 (both IID and non-IID). In case of non-IID, the data amongst the users can be split equally or unequally.
-
-Since the purpose of these experiments are to illustrate the effectiveness of the federated learning paradigm, only simple models such as MLP and CNN are used.
-
-## Requirments
-Install all the packages from requirments.txt
-* Python3
-* Pytorch
-* Torchvision
-
-## Data
-* Download train and test datasets manually or they will be automatically downloaded from torchvision datasets.
-* Experiments are run on Mnist, Fashion Mnist and Cifar.
-* To use your own dataset: Move your dataset to data directory and write a wrapper on pytorch dataset class.
-
-## Running the experiments
-The baseline experiment trains the model in the conventional way.
-
-* To run the baseline experiment with MNIST on MLP using CPU:
-```
-python baseline_main.py --model=mlp --dataset=mnist --epochs=10
-```
-* Or to run it on GPU (eg: if gpu:0 is available):
-```
-python baseline_main.py --model=mlp --dataset=mnist --gpu=0 --epochs=10
-```
------
-
-Federated experiment involves training a global model using many local models.
-
-* To run the federated experiment with CIFAR on CNN (IID):
-```
-python federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=1 --epochs=10
-```
-* To run the same experiment under non-IID condition:
-```
-python federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=0 --epochs=10
-```
-
-You can change the default values of other parameters to simulate different conditions. Refer to the usage section.
+## Reference papers
+* [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedAvg
+* [Federated Visual Classification with Real-World Data Distribution](https://arxiv.org/abs/2003.08082): FedAvg, FedIR, FedVC
+* [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
+* [Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification](https://arxiv.org/abs/1909.06335): FedAvgM
 
 ## Usage
 #### usage: ```main.py [ARGUMENTS]```
@@ -103,6 +65,43 @@ You can change the default values of other parameters to simulate different cond
 * ```--max_pool MAX_POOL```:   Whether use max pooling rather than strided
                         convolutions (default: ```True```)
 
+## Requirments
+Install all the packages from requirements.txt
+* Python3
+* Pytorch
+* Torchvision
+
+## Data
+* Download train and test datasets manually or they will be automatically downloaded from torchvision datasets.
+* Experiments are run on Mnist, Fashion Mnist and Cifar.
+* To use your own dataset: Move your dataset to data directory and write a wrapper on pytorch dataset class.
+
+## Running the experiments
+The baseline experiment trains the model in the conventional way.
+
+* To run the baseline experiment with MNIST on MLP using CPU:
+```
+python baseline_main.py --model=mlp --dataset=mnist --epochs=10
+```
+* Or to run it on GPU (eg: if gpu:0 is available):
+```
+python baseline_main.py --model=mlp --dataset=mnist --gpu=0 --epochs=10
+```
+-----
+
+Federated experiment involves training a global model using many local models.
+
+* To run the federated experiment with CIFAR on CNN (IID):
+```
+python federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=1 --epochs=10
+```
+* To run the same experiment under non-IID condition:
+```
+python federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=0 --epochs=10
+```
+
+You can change the default values of other parameters to simulate different conditions. Refer to the usage section.
+
 ## Results on MNIST
 #### Baseline Experiment:
 The experiment involves training a single model in the conventional way.
@@ -136,9 +135,3 @@ Federated parameters (default values):
 | ----- | -----    |----            |
 |  MLP  |  88.38%  |     73.49%     |
 |  CNN  |  97.28%  |     75.94%     |
-
-## Reference papers
-* [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedAvg
-* [Federated Visual Classification with Real-World Data Distribution](https://arxiv.org/abs/2003.08082): FedAvg, FedIR, FedVC
-* [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
-* [Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification](https://arxiv.org/abs/1909.06335): FedAvgM
