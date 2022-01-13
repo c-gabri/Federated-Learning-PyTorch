@@ -1,4 +1,6 @@
-# Federated Learning: FedSGD, FedAvg, FedAvgM, FedIR, FedVC, FedProx (PyTorch)
+# Federated Learning (PyTorch): FedSGD, FedAvg, FedAvgM, FedIR, FedVC, FedProx
+PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM, FedIR, FedVC, FedProx
+
 ![federated_learning](https://1.bp.blogspot.com/-K65Ed68KGXk/WOa9jaRWC6I/AAAAAAAABsM/gglycD_anuQSp-i67fxER1FOlVTulvV2gCLcB/s1600/FederatedLearning_FinalFiles_Flow%2BChart1.png)
 
 ## Reference papers
@@ -8,9 +10,9 @@
 * [4] [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
 
 ## Usage
-#### usage: ```main.py [ARGUMENTS]```
+### usage: ```main.py [ARGUMENTS]```
 
-#### general arguments:
+### general arguments:
 * ```--centralized```:         use centralized training (default: ```False```)
 * ```--epochs EPOCHS```:       number of rounds of training (default: ```10```)
 * ```--optimizer OPTIMIZER```:
@@ -26,7 +28,7 @@
 * ```--verbose```, ```-v```:         verbose (default: ```True```)
 * ```--help```, ```-h```:            show this help message and exit (default: ```False```)
 
-#### federated arguments:
+### federated arguments:
 * ```--num_users NUM_USERS```, ```-K NUM_USERS```:
                         number of clients (default: ```100```)
 * ```--frac FRAC```, ```-C FRAC```:  fraction of clients (default: ```0.1```)
@@ -51,7 +53,7 @@
 * ```--fedprox_mu FEDPROX_MU```:
                         use FedProx algorithm with specified mu (default: ```0```)
 
-#### model arguments:
+### model arguments:
 * ```--kernel_num KERNEL_NUM```:
                         number of each kind of kernel (default: ```9```)
 * ```--kernel_sizes KERNEL_SIZES```:
