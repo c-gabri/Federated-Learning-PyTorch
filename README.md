@@ -35,8 +35,8 @@
                         local batch size (default: ```10```)
 * ```--server_lr SERVER_LR```:
                         server learning rate (default: ```1```)
-* ```--iid IID```:             Default set to IID. Set to 0 for non```-IID```. (default: ```1```)
-* ```--unequal UNEQUAL```:     whether to use unequal data splits for non```-i```.i.d
+* ```--iid IID```:             Default set to IID. Set to 0 for non-IID. (default: ```1```)
+* ```--unequal UNEQUAL```:     whether to use unequal data splits for non-i.i.d
                         setting (use 0 for equal splits) (default: ```0```)
 * ```--hetero HETERO```:       system heterogeneity (default: ```0```)
 * ```--fedsgd```:              use FedSGD algorithm (default: ```False```)
@@ -54,7 +54,7 @@
 * ```--kernel_num KERNEL_NUM```:
                         number of each kind of kernel (default: ```9```)
 * ```--kernel_sizes KERNEL_SIZES```:
-                        comma```-separated```: kernel size to use for convolution
+                        comma-separated kernel size to use for convolution
                         (default: ```3,4,5```)
 * ```--num_channels NUM_CHANNELS```:
                         number of channels of imgs (default: ```1```)

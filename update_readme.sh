@@ -4,7 +4,7 @@ help=$(python src/main.py -h)
 
 help=$(echo "$help" | \
 sed 's/^\ \ --/\*\ --/' | \
-sed -E 's/((-){1,2}[a-zA-Z_]+(\ [A-Z_]+)?)/```\1```/g' | \
+sed -E 's/\ ((-){1,2}[a-zA-Z_]+(\ [A-Z_]+)?)/\ ```\1```/g' | \
 sed -E 's/```(\ |$)/```:\1/' | \
 sed -E 's/(main\.py.*)/```\1```/' | \
 sed -E 's/default:\ (.*)\)/default:\ ```\1```\)/' | \
