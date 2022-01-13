@@ -30,10 +30,10 @@ def args_parser():
                         help='model name')
     args_general.add_argument('--num_classes', type=int, default=10,
                         help="number of classes") # TODO: remove (get it from dataset)
-    args_general.add_argument('--stopping_rounds', type=int, default=10,
-                        help='rounds of early stopping') # TODO: remove or implement
-    args_general.add_argument('--seed', type=int, default=1,
-                        help='random seed') # TODO: implement
+    #args_general.add_argument('--stopping_rounds', type=int, default=10,
+    #                    help='rounds of early stopping') # TODO: remove or implement
+    #args_general.add_argument('--seed', type=int, default=1,
+    #                    help='random seed') # TODO: implement
     args_general.add_argument('--verbose', '-v', action='store_true', default=True,
                         help='verbose')
     args_general.add_argument('--help', '-h', action='store_true', default=False,

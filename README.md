@@ -48,63 +48,60 @@ You can change the default values of other parameters to simulate different cond
 #### usage: ```main.py [ARGUMENTS]```
 
 #### general arguments:
-* ```--centralized```         use centralized training (default: False)
-* ```--epochs EPOCHS```       number of rounds of training (default: 10)
+* ```--centralized```         use centralized training (default: ```False```)
+* ```--epochs EPOCHS```       number of rounds of training (default: ```10```)
 * ```--optimizer OPTIMIZER```
-                        type of optimizer (default: sgd)
-* ```--lr LR```               learning rate (default: 0.01)
-* ```--momentum MOMENTUM```   SGD momentum (default: 0)
-* ```--dataset DATASET```     name of dataset (default: cifar)
+                        type of optimizer (default: ```sgd```)
+* ```--lr LR```               learning rate (default: ```0.01```)
+* ```--momentum MOMENTUM```   SGD momentum (default: ```0```)
+* ```--dataset DATASET```     name of dataset (default: ```cifar```)
 * ```--gpu GPU```             To use cuda, set to a specific GPU ID. Default set to
-                        use CPU. (default: None)
-* ```--model MODEL```         model name (default: cnn)
+                        use CPU. (default: ```None```)
+* ```--model MODEL```         model name (default: ```cnn```)
 * ```--num_classes NUM_CLASSES```
-                        number of classes (default: 10)
-* ```--stopping_rounds STOPPING_ROUNDS```
-                        rounds of early stopping (default: 10)
-* ```--seed SEED```           random seed (default: 1)
-* ```--verbose```, ```-v```         verbose (default: True)
-* ```--help```, ```-h```            show this help message and exit (default: False)
+                        number of classes (default: ```10```)
+* ```--verbose```, ```-v```         verbose (default: ```True```)
+* ```--help```, ```-h```            show this help message and exit (default: ```False```)
 
 #### federated arguments:
 * ```--num_users NUM_USERS```, ```-K NUM_USERS```
-                        number of clients (default: 100)
-* ```--frac FRAC```, ```-C FRAC```  fraction of clients (default: 0.1)
+                        number of clients (default: ```100```)
+* ```--frac FRAC```, ```-C FRAC```  fraction of clients (default: ```0.1```)
 * ```--local_ep LOCAL_EP```, ```-E LOCAL_EP```
-                        number of local epochs (default: 10)
+                        number of local epochs (default: ```10```)
 * ```--local_bs LOCAL_BS```, ```-B LOCAL_BS```
-                        local batch size (default: 10)
+                        local batch size (default: ```10```)
 * ```--server_lr SERVER_LR```
-                        server learning rate (default: 1)
-* ```--iid IID```             Default set to IID. Set to 0 for non```-IID```. (default: 1)
+                        server learning rate (default: ```1```)
+* ```--iid IID```             Default set to IID. Set to 0 for non```-IID```. (default: ```1```)
 * ```--unequal UNEQUAL```     whether to use unequal data splits for non```-i```.i.d
-                        setting (use 0 for equal splits) (default: 0)
-* ```--hetero HETERO```       system heterogeneity (default: 0)
-* ```--fedsgd```              use FedSGD algorithm (default: False)
+                        setting (use 0 for equal splits) (default: ```0```)
+* ```--hetero HETERO```       system heterogeneity (default: ```0```)
+* ```--fedsgd```              use FedSGD algorithm (default: ```False```)
 * ```--fedavgm_momentum FEDAVGM_MOMENTUM```
                         use FedAvgM algorithm with specified server momentum
-                        (default: 0)
-* ```--fedir```               use FedIR algorithm (default: False)
+                        (default: ```0```)
+* ```--fedir```               use FedIR algorithm (default: ```False```)
 * ```--fedvc_nvc FEDVC_NVC```
                         use FedVC algorithm with specified client size
-                        (default: 0)
+                        (default: ```0```)
 * ```--fedprox_mu FEDPROX_MU```
-                        use FedProx algorithm with specified mu (default: 0)
+                        use FedProx algorithm with specified mu (default: ```0```)
 
 #### model arguments:
 * ```--kernel_num KERNEL_NUM```
-                        number of each kind of kernel (default: 9)
+                        number of each kind of kernel (default: ```9```)
 * ```--kernel_sizes KERNEL_SIZES```
                         comma```-separated``` kernel size to use for convolution
-                        (default: 3,4,5)
+                        (default: ```3,4,5```)
 * ```--num_channels NUM_CHANNELS```
-                        number of channels of imgs (default: 1)
-* ```--norm NORM```           batch_norm, layer_norm, or None (default: batch_norm)
+                        number of channels of imgs (default: ```1```)
+* ```--norm NORM```           batch_norm, layer_norm, or None (default: ```batch_norm```)
 * ```--num_filters NUM_FILTERS```
                         number of filters for conv nets -- 32 for mini-
-                        imagenet, 64 for omiglot. (default: 32)
+                        imagenet, 64 for omiglot. (default: ```32```)
 * ```--max_pool MAX_POOL```   Whether use max pooling rather than strided
-                        convolutions (default: True)
+                        convolutions (default: ```True```)
 
 ## Results on MNIST
 #### Baseline Experiment:
