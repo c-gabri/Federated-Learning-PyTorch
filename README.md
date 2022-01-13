@@ -1,10 +1,10 @@
-# Federated Learning: FedAvg, FedAvgM, FedIR, FedVC, FedProx (PyTorch)
+# Federated Learning: FedSGD, FedAvg, FedAvgM, FedIR, FedVC, FedProx (PyTorch)
 
 ## Reference papers
-* [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedAvg
-* [Federated Visual Classification with Real-World Data Distribution](https://arxiv.org/abs/2003.08082): FedAvg, FedIR, FedVC
-* [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
-* [Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification](https://arxiv.org/abs/1909.06335): FedAvgM
+* [1] [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedSGD, FedAvg
+* [2] [Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification](https://arxiv.org/abs/1909.06335): FedAvgM
+* [3] [Federated Visual Classification with Real-World Data Distribution](https://arxiv.org/abs/2003.08082): FedAvg, FedIR, FedVC
+* [4] [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
 
 ## Usage
 #### usage: ```main.py [ARGUMENTS]```
