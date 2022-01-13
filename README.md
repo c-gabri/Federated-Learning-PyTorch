@@ -19,7 +19,8 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * tqdm 4.62.3
 
 ## Usage
-### usage: python ```main.py [ARGUMENTS]```
+### usage:
+```python main.py [ARGUMENTS]```
 
 ### general arguments:
 * ```--centralized```:         use centralized training (default: ```False```)
