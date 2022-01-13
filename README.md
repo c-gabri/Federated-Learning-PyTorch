@@ -10,15 +10,16 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * [4] [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
 
 ## Requirements
-* torch==1.10.0
-* torchvision==0.11.1
-* numpy==1.17.4
-* tensorboardX==2.4.1
-* matplotlib==3.4.3
-* tqdm==4.62.3
+* python 3.8.10
+* matplotlib 3.4.3
+* numpy 1.17.4
+* tensorboardX 2.4.1
+* torch 1.10.0
+* torchvision 0.11.1
+* tqdm 4.62.3
 
 ## Usage
-### usage: ```main.py [ARGUMENTS]```
+### usage: python ```main.py [ARGUMENTS]```
 
 ### general arguments:
 * ```--centralized```:         use centralized training (default: ```False```)

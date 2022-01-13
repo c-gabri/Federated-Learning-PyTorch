@@ -7,7 +7,7 @@ import argparse
 
 
 def args_parser():
-    usage = 'main.py [ARGUMENTS]'
+    usage = 'python main.py [ARGUMENTS]'
     parser = argparse.ArgumentParser(add_help=False, usage=usage, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # General arguments

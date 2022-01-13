@@ -10,7 +10,8 @@ sed -E 's/(main\.py.*)/```\1```/' | \
 sed -E 's/default:\ (.*)\)/default:\ ```\1```\)/' | \
 sed -E 's/(^[a-z])/###\ \1/')
 
-requirements=$(cat requirements.txt | sed 's/^/*\ /')
+requirements="* python $(grep 'Python version' src/main.py | cut -d ':' -f2 | tr -d ' ')"
+requirements=$(echo "$requirements"; sort requirements.txt | sed 's/==/\ /; s/^/*\ /')
 
 export usage requirements
 perl -i.bak -0 -pe 's/(## Usage\n)(.*?)(\n## )/$1$ENV{usage}\n$3/s; s/(## Requirements\n)(.*?)(\n## )/$1$ENV{requirements}\n$3/s' README.md
