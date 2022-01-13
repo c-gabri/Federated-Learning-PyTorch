@@ -137,15 +137,8 @@ Federated parameters (default values):
 |  MLP  |  88.38%  |     73.49%     |
 |  CNN  |  97.28%  |     75.94%     |
 
-
-## Further Readings
-### Papers:
-* [Federated Learning: Challenges, Methods, and Future Directions](https://arxiv.org/abs/1908.07873)
-* [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629)
-* [Deep Learning with Differential Privacy](https://arxiv.org/abs/1607.00133)
-
-### Blog Posts:
-* [CMU MLD Blog Post: Federated Learning: Challenges, Methods, and Future Directions](https://blog.ml.cmu.edu/2019/11/12/federated-learning-challenges-methods-and-future-directions/)
-* [Leaf: A Benchmark for Federated Settings (CMU)](https://leaf.cmu.edu/)
-* [TensorFlow Federated](https://www.tensorflow.org/federated)
-* [Google AI Blog Post](https://ai.googleblog.com/2017/04/federated-learning-collaborative.html)
+## Reference papers
+* [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedAvg
+* [Federated Visual Classification with Real-World Data Distribution](https://arxiv.org/abs/2003.08082): FedAvg, FedIR, FedVC
+* [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
+* [Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification](https://arxiv.org/abs/1909.06335): FedAvgM
