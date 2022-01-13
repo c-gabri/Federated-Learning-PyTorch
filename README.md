@@ -45,7 +45,7 @@ python federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=0 --epochs=10
 You can change the default values of other parameters to simulate different conditions. Refer to the usage section.
 
 ## Usage
-#### usage: main.py [ARGUMENTS]
+#### usage: ```main.py [ARGUMENTS]```
 
 #### general arguments:
 * ```--centralized```         use centralized training (default: False)
