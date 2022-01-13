@@ -34,7 +34,7 @@ class LocalUpdate(object):
         self.idxs = list(idxs)
         #self.trainloader, self.validloader, self.testloader = self.train_val_test(
         #    dataset, self.idxs)
-        self.device = 'cuda' if args.gpu else 'cpu'
+        self.device = 'cuda' if args.gpu is not None else 'cpu'
         self.local_bs = self.args.local_bs if self.args.local_bs > 0 else len(idxs)
 
         if self.args.fedvc_nvc == 0:
@@ -161,7 +161,7 @@ def test_inference(args, model, test_dataset, test_user_groups):
     model.eval()
     loss, total, correct = 0.0, 0.0, 0.0
 
-    device = 'cuda' if args.gpu else 'cpu'
+    device = 'cuda' if args.gpu is not None else 'cpu'
     criterion = nn.NLLLoss().to(device) # use same criterion used during training?
     testloader = DataLoader(test_dataset, batch_size=128, shuffle=False)
 

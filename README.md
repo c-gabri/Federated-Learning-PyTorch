@@ -27,7 +27,7 @@ python baseline_main.py --model=mlp --dataset=mnist --epochs=10
 ```
 * Or to run it on GPU (eg: if gpu:0 is available):
 ```
-python baseline_main.py --model=mlp --dataset=mnist --gpu=cuda:0 --epochs=10
+python baseline_main.py --model=mlp --dataset=mnist --gpu=0 --epochs=10
 ```
 -----
 
@@ -35,35 +35,76 @@ Federated experiment involves training a global model using many local models.
 
 * To run the federated experiment with CIFAR on CNN (IID):
 ```
-python federated_main.py --model=cnn --dataset=cifar --gpu=cuda:0 --iid=1 --epochs=10
+python federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=1 --epochs=10
 ```
 * To run the same experiment under non-IID condition:
 ```
-python federated_main.py --model=cnn --dataset=cifar --gpu=cuda:0 --iid=0 --epochs=10
+python federated_main.py --model=cnn --dataset=cifar --gpu=0 --iid=0 --epochs=10
 ```
 
-You can change the default values of other parameters to simulate different conditions. Refer to the options section.
+You can change the default values of other parameters to simulate different conditions. Refer to the usage section.
 
-## Options
-The default values for various paramters parsed to the experiment are given in ```options.py```. Details are given some of those parameters:
+## Usage
+#### usage: main.py [ARGUMENTS]
 
-* ```--dataset:```  Default: 'mnist'. Options: 'mnist', 'fmnist', 'cifar'
-* ```--model:```    Default: 'mlp'. Options: 'mlp', 'cnn'
-* ```--gpu:```      Default: None (runs on CPU). Can also be set to the specific gpu id.
-* ```--epochs:```   Number of rounds of training.
-* ```--lr:```       Learning rate set to 0.01 by default.
-* ```--verbose:```  Detailed log outputs. Activated by default, set to 0 to deactivate.
-* ```--seed:```     Random Seed. Default set to 1.
+#### general arguments:
+* ```--centralized```         use centralized training (default: False)
+* ```--epochs EPOCHS```       number of rounds of training (default: 10)
+* ```--optimizer OPTIMIZER```
+                        type of optimizer (default: sgd)
+* ```--lr LR```               learning rate (default: 0.01)
+* ```--momentum MOMENTUM```   SGD momentum (default: 0)
+* ```--dataset DATASET```     name of dataset (default: cifar)
+* ```--gpu GPU```             To use cuda, set to a specific GPU ID. Default set to
+                        use CPU. (default: None)
+* ```--model MODEL```         model name (default: cnn)
+* ```--num_classes NUM_CLASSES```
+                        number of classes (default: 10)
+* ```--stopping_rounds STOPPING_ROUNDS```
+                        rounds of early stopping (default: 10)
+* ```--seed SEED```           random seed (default: 1)
+* ```--verbose```, ```-v```         verbose (default: True)
+* ```--help```, ```-h```            show this help message and exit (default: False)
 
-#### Federated Parameters
-* ```--iid:```      Distribution of data amongst users. Default set to IID. Set to 0 for non-IID.
-* ```--num_users:```Number of users. Default is 100.
-* ```--frac:```     Fraction of users to be used for federated updates. Default is 0.1.
-* ```--local_ep:``` Number of local training epochs in each user. Default is 10.
-* ```--local_bs:``` Batch size of local updates in each user. Default is 10.
-* ```--unequal:```  Used in non-iid setting. Option to split the data amongst users equally or unequally. Default set to 0 for equal splits. Set to 1 for unequal splits.
-* ```--fedir:```    Use the FedIR algorithm (from "Federated Visual Classification with Real-World Data Distribution")
-* ```--vcsize:```   Virtual Client size for the FedVC algorithm from "Federated Visual Classification with Real-World Data Distribution"). Default is 0.
+#### federated arguments:
+* ```--num_users NUM_USERS```, ```-K NUM_USERS```
+                        number of clients (default: 100)
+* ```--frac FRAC```, ```-C FRAC```  fraction of clients (default: 0.1)
+* ```--local_ep LOCAL_EP```, ```-E LOCAL_EP```
+                        number of local epochs (default: 10)
+* ```--local_bs LOCAL_BS```, ```-B LOCAL_BS```
+                        local batch size (default: 10)
+* ```--server_lr SERVER_LR```
+                        server learning rate (default: 1)
+* ```--iid IID```             Default set to IID. Set to 0 for non```-IID```. (default: 1)
+* ```--unequal UNEQUAL```     whether to use unequal data splits for non```-i```.i.d
+                        setting (use 0 for equal splits) (default: 0)
+* ```--hetero HETERO```       system heterogeneity (default: 0)
+* ```--fedsgd```              use FedSGD algorithm (default: False)
+* ```--fedavgm_momentum FEDAVGM_MOMENTUM```
+                        use FedAvgM algorithm with specified server momentum
+                        (default: 0)
+* ```--fedir```               use FedIR algorithm (default: False)
+* ```--fedvc_nvc FEDVC_NVC```
+                        use FedVC algorithm with specified client size
+                        (default: 0)
+* ```--fedprox_mu FEDPROX_MU```
+                        use FedProx algorithm with specified mu (default: 0)
+
+#### model arguments:
+* ```--kernel_num KERNEL_NUM```
+                        number of each kind of kernel (default: 9)
+* ```--kernel_sizes KERNEL_SIZES```
+                        comma```-separated``` kernel size to use for convolution
+                        (default: 3,4,5)
+* ```--num_channels NUM_CHANNELS```
+                        number of channels of imgs (default: 1)
+* ```--norm NORM```           batch_norm, layer_norm, or None (default: batch_norm)
+* ```--num_filters NUM_FILTERS```
+                        number of filters for conv nets -- 32 for mini-
+                        imagenet, 64 for omiglot. (default: 32)
+* ```--max_pool MAX_POOL```   Whether use max pooling rather than strided
+                        convolutions (default: True)
 
 ## Results on MNIST
 #### Baseline Experiment:

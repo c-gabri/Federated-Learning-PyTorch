@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.6
+# Python version: 3.8.10
 
 
-import os
 import copy
 import time
 import pickle
@@ -20,29 +19,28 @@ from utils import get_dataset, average_weights, exp_details
 
 
 if __name__ == '__main__':
-    start_time = time.time()
+    # Start timer
+    start_time = time.time() # TODO: time training only
 
-    # define paths
-    path_project = os.path.abspath('..')
+    # Initialize logger
     logger = SummaryWriter('../logs')
 
+    # Parse arguments
     args = args_parser()
-    #exp_details(args)
 
-    if args.gpu:
-        torch.cuda.set_device(args.gpu)
-    device = 'cuda' if args.gpu else 'cpu'
+    # Set device
+    if args.gpu is not None:
+        torch.cuda.set_device(args.gpu) # TODO: remove, usage is dicouraged
+    device = 'cuda' if args.gpu is not None else 'cpu'
 
-    # load dataset and user groups
+    # Load datasets and client splits
     train_dataset, test_dataset, user_groups = get_dataset(args)
-
-    # just for testing, replace with real test split
-    test_user_groups = {}
+    test_user_groups = {} # TODO: replace with real test split
     for i in range(args.num_users):
         N = int(len(test_dataset)/args.num_users)
         test_user_groups[i] = list(range(i*N, (i+1)*N))
 
-    # BUILD MODEL
+    # Load model to device
     if args.model == 'cnn':
         # Convolutional neural netork
         if args.dataset == 'mnist':
@@ -51,24 +49,18 @@ if __name__ == '__main__':
             global_model = CNNFashion_Mnist(args=args)
         elif args.dataset == 'cifar':
             global_model = CNNCifar(args=args)
-
     elif args.model == 'mlp':
         # Multi-layer preceptron
         img_size = train_dataset[0][0].shape
         len_in = 1
         for x in img_size:
             len_in *= x
-            global_model = MLP(dim_in=len_in, dim_hidden=64,
-                               dim_out=args.num_classes)
-
+            global_model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
     else:
         exit('Error: unrecognized model')
-
-    # Set the model to train and send it to device.
     global_model.to(device)
-    #global_model.train() # unnecessary?
-    #print(global_model)
 
+    # Print experimental details
     exp_details(args, global_model)
 
     # copy weights
