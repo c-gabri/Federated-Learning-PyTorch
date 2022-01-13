@@ -28,23 +28,23 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
                         type of optimizer (default: ```sgd```)
 * ```--lr LR```:               learning rate (default: ```0.01```)
 * ```--momentum MOMENTUM```:   SGD momentum (default: ```0```)
-* ```--dataset```: {cifar10,mnist}
+* ```--dataset {cifar10,mnist}```:
                         name of dataset (default: ```cifar10```)
 * ```--gpu GPU```:             To use cuda, set to a specific GPU ID. Default set to
                         use CPU. (default: ```None```)
-* ```--model```: {cnn,mlp}     model name (default: ```cnn```)
+* ```--model {cnn,mlp}```:     model name (default: ```cnn```)
 * ```--num_classes NUM_CLASSES```:
                         number of classes (default: ```10```)
-* ```--verbose```, ```-v```:         verbose (default: ```True```)
-* ```--help```, ```-h```:            show this help message and exit (default: ```False```)
+* ```--verbose, -v```:         verbose (default: ```True```)
+* ```--help, -h```:            show this help message and exit (default: ```False```)
 
 ### federated arguments:
-* ```--num_users NUM_USERS```, ```-K NUM_USERS```:
+* ```--num_users NUM_USERS, -K NUM_USERS```:
                         number of clients (default: ```100```)
-* ```--frac FRAC```, ```-C FRAC```:  fraction of clients (default: ```0.1```)
-* ```--local_ep LOCAL_EP```, ```-E LOCAL_EP```:
+* ```--frac FRAC, -C FRAC```:  fraction of clients (default: ```0.1```)
+* ```--local_ep LOCAL_EP, -E LOCAL_EP```:
                         number of local epochs (default: ```10```)
-* ```--local_bs LOCAL_BS```, ```-B LOCAL_BS```:
+* ```--local_bs LOCAL_BS, -B LOCAL_BS```:
                         local batch size (default: ```10```)
 * ```--server_lr SERVER_LR```:
                         server learning rate (default: ```1```)
