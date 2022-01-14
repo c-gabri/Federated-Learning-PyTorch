@@ -18,7 +18,6 @@ def get_datasets_splits(args):
 
     if args.dataset == 'cifar10':
         data_dir = '../data/cifar10/'
-        apply_transform = transforms.Compose(
 
         if args.model == 'resnet': # Why specific transformations for resnet?
             apply_transform = transforms.Compose([

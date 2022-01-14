@@ -32,7 +32,8 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
                         name of dataset (default: ```cifar10```)
 * ```--gpu GPU```:             To use cuda, set to a specific GPU ID. Default set to
                         use CPU. (default: ```None```)
-* ```--model {cnn,mlp}```:     model name (default: ```cnn```)
+* ```--model {lenet5,cnn,mlp}```:
+                        model name (default: ```lenet5```)
 * ```--num_classes NUM_CLASSES```:
                         number of classes (default: ```10```)
 * ```--verbose, -v```:         verbose (default: ```True```)
