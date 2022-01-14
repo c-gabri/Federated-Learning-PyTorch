@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 
-from utils import get_dataset
+from utils import get_datasets_splits
 from options import args_parser
 from update import test_inference
 from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     device = 'cuda' if args.gpu is not None else 'cpu'
 
     # load datasets
-    train_dataset, test_dataset, _ = get_dataset(args)
+    train_dataset, test_dataset, _ = get_datasets_splits(args)
 
     # BUILD MODEL
     if args.model == 'cnn':

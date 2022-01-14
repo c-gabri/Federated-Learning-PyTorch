@@ -21,7 +21,7 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 ## Usage
 ```python main.py [ARGUMENTS]```
 
-### general arguments:
+### General arguments:
 * ```--centralized```:         use centralized training (default: ```False```)
 * ```--epochs EPOCHS```:       number of rounds of training (default: ```10```)
 * ```--optimizer {sgd,adam}```:
@@ -38,7 +38,7 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * ```--verbose, -v```:         verbose (default: ```True```)
 * ```--help, -h```:            show this help message and exit (default: ```False```)
 
-### federated arguments:
+### Federated arguments:
 * ```--num_users NUM_USERS, -K NUM_USERS```:
                         number of clients (default: ```100```)
 * ```--frac FRAC, -C FRAC```:  fraction of clients (default: ```0.1```)
@@ -63,7 +63,7 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * ```--fedprox_mu FEDPROX_MU```:
                         use FedProx algorithm with specified mu (default: ```0```)
 
-### model arguments:
+### Model arguments:
 * ```--kernel_num KERNEL_NUM```:
                         number of each kind of kernel (default: ```9```)
 * ```--kernel_sizes KERNEL_SIZES```:

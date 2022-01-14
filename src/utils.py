@@ -9,7 +9,7 @@ from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
 from sampling import cifar10_iid, cifar10_noniid
 
 
-def get_dataset(args):
+def get_datasets_splits(args):
     """ Returns train and test datasets and a user group which is a dict where
     the keys are the user index and the values are the corresponding data for
     each of those users.
@@ -30,7 +30,7 @@ def get_dataset(args):
         # sample training data amongst users
         if args.iid:
             # Sample IID user data from CIFAR-10
-            user_groups = cifar10_iid(train_dataset, args.num_users)
+            train_splits = cifar10_iid(train_dataset, args.num_users)
         else:
             # Sample Non-IID user data from CIFAR-10
             if args.unequal:
@@ -38,7 +38,7 @@ def get_dataset(args):
                 raise NotImplementedError()
             else:
                 # Choose equal splits for every user
-                user_groups = cifar10_noniid(train_dataset, args.num_users)
+                train_splits = cifar10_noniid(train_dataset, args.num_users)
 
     elif args.dataset == 'mnist' or 'fmnist':
         if args.dataset == 'mnist':
@@ -59,17 +59,19 @@ def get_dataset(args):
         # sample training data amongst users
         if args.iid:
             # Sample IID user data from Mnist
-            user_groups = mnist_iid(train_dataset, args.num_users)
+            train_splits = mnist_iid(train_dataset, args.num_users)
         else:
             # Sample Non-IID user data from Mnist
             if args.unequal:
                 # Chose uneuqal splits for every user
-                user_groups = mnist_noniid_unequal(train_dataset, args.num_users)
+                train_splits = mnist_noniid_unequal(train_dataset, args.num_users)
             else:
                 # Chose euqal splits for every user
-                user_groups = mnist_noniid(train_dataset, args.num_users)
+                train_splits = mnist_noniid(train_dataset, args.num_users)
 
-    return train_dataset, test_dataset, user_groups
+    test_splits = None # TODO: implement
+
+    return train_dataset, test_dataset, train_splits, test_splits
 
 
 #def average_weights(w):

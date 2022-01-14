@@ -5,7 +5,7 @@ usage=$(python src/main.py -h)
 usage=$(echo "$usage" | \
 sed 's/^usage:\ //' | \
 sed -E 's/(^python\ .*)/```\1```/' | \
-sed -E 's/(^[a-z])/###\ \1/' | \
+sed -E 's/^[a-z]/###\ \u&/' | \
 sed 's/^\ \ --/\*\ --/' | \
 sed -E 's/(--[^[:space:]]+(\ [^[:space:]]+)?(,\ -[^[:space:]]+(\ [^[:space:]]+)?)?)/```\1```:/' | \
 sed -E 's/default:\ (.*)\)/default:\ ```\1```\)/')
