@@ -16,7 +16,7 @@ def args_parser():
                         help='use centralized training')
     args_general.add_argument('--epochs', type=int, default=10,
                         help='number of rounds of training')
-    args_general.add_argument('--optimizer', type=str, default='sgd',
+    args_general.add_argument('--optimizer', type=str, default='sgd', choices=['sgd','adam'],
                         help="type of optimizer")
     args_general.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')

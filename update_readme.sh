@@ -3,7 +3,7 @@
 usage=$(python src/main.py -h)
 
 usage=$(echo "$usage" | \
-sed 's/^usage:\ /###\ usage:\n/' | \
+sed 's/^usage:\ //' | \
 sed -E 's/(^python\ .*)/```\1```/' | \
 sed -E 's/(^[a-z])/###\ \1/' | \
 sed 's/^\ \ --/\*\ --/' | \

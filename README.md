@@ -19,13 +19,12 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * tqdm 4.62.3
 
 ## Usage
-### usage:
 ```python main.py [ARGUMENTS]```
 
 ### general arguments:
 * ```--centralized```:         use centralized training (default: ```False```)
 * ```--epochs EPOCHS```:       number of rounds of training (default: ```10```)
-* ```--optimizer OPTIMIZER```:
+* ```--optimizer {sgd,adam}```:
                         type of optimizer (default: ```sgd```)
 * ```--lr LR```:               learning rate (default: ```0.01```)
 * ```--momentum MOMENTUM```:   SGD momentum (default: ```0```)
