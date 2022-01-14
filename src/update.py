@@ -159,6 +159,10 @@ def test_inference(args, model, test_dataset, test_splits):
     """
 
     model.eval()
+
+    # if (args.model == 'resnet'):
+    #     model = torch.quantization.convert(model)
+
     loss, total, correct = 0.0, 0.0, 0.0
 
     device = 'cuda' if args.gpu is not None else 'cpu'

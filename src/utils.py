@@ -4,6 +4,7 @@
 
 import copy
 import torch
+from torch import nn
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
 from sampling import cifar10_iid, cifar10_noniid
@@ -18,8 +19,17 @@ def get_datasets_splits(args):
     if args.dataset == 'cifar10':
         data_dir = '../data/cifar10/'
         apply_transform = transforms.Compose(
-            [transforms.ToTensor(),
-             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+        if args.model == 'resnet': # Why specific transformations for resnet?
+            apply_transform = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        else:
+            apply_transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
         train_dataset = datasets.CIFAR10(data_dir, train=True, download=True,
                                        transform=apply_transform)
@@ -74,7 +84,6 @@ def get_datasets_splits(args):
     return train_dataset, test_dataset, train_splits, test_splits
 
 
-#def average_weights(w):
 def average_weights(w, n_k):
     """
     Returns the average of the weights.
@@ -123,3 +132,36 @@ def exp_details(args, model):
         print('')
 
     return
+
+
+def create_combined_model(model_fe):
+
+    num_ftrs = model_fe.fc.in_features
+
+    model_fe_features = nn.Sequential(
+        model_fe.quant,  # Quantize the input
+        model_fe.conv1,
+        model_fe.bn1,
+        model_fe.relu,
+        model_fe.maxpool,
+        model_fe.layer1,
+        model_fe.layer2,
+        model_fe.layer3,
+        model_fe.layer4,
+        model_fe.avgpool,
+        model_fe.dequant,  # Dequantize the output
+    )
+
+    # Step 2. Create a new "head"
+    new_head = nn.Sequential(
+        nn.Dropout(p=0.5),
+        nn.Linear(num_ftrs, 2),
+    )
+
+    # Step 3. Combine, and don't forget the quant stubs.
+    new_model = nn.Sequential(
+        model_fe_features,
+        nn.Flatten(1),
+        new_head,
+    )
+    return new_model

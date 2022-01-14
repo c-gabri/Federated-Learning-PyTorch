@@ -14,7 +14,7 @@ from tensorboardX import SummaryWriter
 
 from options import args_parser
 from update import LocalUpdate, test_inference
-from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
+from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar, LeNet5
 from utils import get_datasets_splits, average_weights, exp_details
 
 
@@ -58,6 +58,8 @@ if __name__ == '__main__':
         for x in img_size:
             len_in *= x
             global_model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
+    elif args.model == 'lenet5':
+        global_model = LeNet5()
     else:
         exit('Error: unrecognized model')
     global_model.to(device)
@@ -70,11 +72,7 @@ if __name__ == '__main__':
 
     # Training
     train_loss = []
-    #train_accuracy = []
-    #val_acc_list, net_list = [], []
-    #cv_loss, cv_acc = [], []
     print_every = 1
-    #val_loss_pre, counter = 0, 0
 
     if args.fedvc_nvc > 0:
         p = p = np.array([len(train_splits[user]) for user in train_splits])

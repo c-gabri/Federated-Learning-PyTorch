@@ -26,7 +26,7 @@ def args_parser():
                         help='name of dataset') # TODO: remove or implement fmnist
     args_general.add_argument('--gpu', type=int, default=None,
                         help="To use cuda, set to a specific GPU ID. Default set to use CPU.")
-    args_general.add_argument('--model', type=str, default='cnn', choices=['cnn','mlp'],
+    args_general.add_argument('--model', type=str, default='lenet5', choices=['lenet5','cnn','mlp'],
                         help='model name')
     args_general.add_argument('--num_classes', type=int, default=10,
                         help="number of classes") # TODO: remove (get it from dataset)
