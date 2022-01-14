@@ -1,6 +1,76 @@
 from sampling import cifar_iid, cifar_iid_noreimmission, cifar_iid_unequal, cifar_iid_unequal_noreimmission, cifar_noniid, cifar_noniid_unequal
 from torchvision import datasets, transforms
 import numpy as np
+import random
+import matplotlib.pyplot as plt
+import numpy as np
+
+# takes as parameters: dataframe, number of users, number of items for each client (if not set it depends on db images/ num of users), 
+# unbalance factor from 0 to 1 where 0 is a uniform distribution and 1 is distributed over a single class.
+def distribution_iid(dataset, num_users, unbalance_factor, fixed_items=0):
+    available_classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
+    distribution = np.zeros(10)
+    probabilities = np.zeros(10)
+    sum_prob = 0
+    max_prob = 100
+    # print(probabilities)
+    dict_users, all_idxs = {}, [i for i in range(len(dataset))]
+    idxs = np.arange(len(dataset))
+    idxs_labels = np.vstack((idxs, labels))
+    idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
+    idxs = idxs_labels[0, :]
+    if fixed_items == 0:
+        num_items = int(len(dataset)/num_users)
+    else:
+        num_items = fixed_items
+    num_items = 500
+    random.shuffle(available_classes)
+
+    probabilities[available_classes[0]] = max_prob
+    curr_prob = max_prob
+    i = 0
+    while i<9:
+        curr_prob -= curr_prob*unbalance_factor
+        probabilities[available_classes[i]] = curr_prob
+        probabilities[available_classes[i+1]] = curr_prob
+        i += 2
+    print(probabilities)
+    drawHist(probabilities,available_classes)
+    total_prob = np.sum(probabilities)
+    for item in range(num_items):    
+        chosen = random.uniform(0, total_prob)
+        cumulative = 0
+        for index, probability in enumerate(probabilities):
+            # print(index)
+            cumulative += probability
+            if cumulative > chosen:
+                # print(index)
+                distribution[index] += 1
+                break
+    print(distribution)
+    drawHist(distribution,available_classes)
+    plt.show()
+    labels = np.array(dataset.targets)
+
+    # sort labels
+    
+    print(idxs_labels)
+
+    #print(all_idxs)
+    return dict_users
+
+import random
+
+
+def drawHist(data,names):
+    plt.figure()
+    plt.bar(names,data)  # density=False would make counts
+    plt.xticks(names)
+    #plt.yticks(data) #This may be included or excluded as per need
+    plt.xlabel('Names')
+    plt.ylabel('Probability')
+    
+
 
 data_dir = '../data/cifar/'
 num_users = 50
@@ -16,7 +86,8 @@ test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
 # user_groups = cifar_noniid_unequal(train_dataset, num_users)
 # user_groups = cifar_noniid(train_dataset, num_users)
 # user_groups = cifar_iid(train_dataset, num_users)
-user_groups = cifar_iid_unequal(train_dataset, num_users)
+# user_groups = cifar_iid_unequal(train_dataset, num_users)
+user_groups = distribution_iid(train_dataset, num_users,0.5)
 labels = np.array(train_dataset.targets)
 
 
