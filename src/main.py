@@ -14,8 +14,8 @@ from tensorboardX import SummaryWriter
 
 from options import args_parser
 from update import LocalUpdate, test_inference
-from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
-from utils import get_dataset, average_weights, exp_details
+from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar, LeNet5
+from utils import get_datasets_splits, average_weights, exp_details
 
 
 if __name__ == '__main__':
@@ -34,11 +34,13 @@ if __name__ == '__main__':
     device = 'cuda' if args.gpu is not None else 'cpu'
 
     # Load datasets and client splits
-    train_dataset, test_dataset, user_groups = get_dataset(args)
-    test_user_groups = {} # TODO: replace with real test split
+    train_dataset, test_dataset, train_splits, test_splits = get_datasets_splits(args)
+
+    # Fake test splits. TODO: remove after implementation of real ones
+    test_splits = {}
     for i in range(args.num_users):
         N = int(len(test_dataset)/args.num_users)
-        test_user_groups[i] = list(range(i*N, (i+1)*N))
+        test_splits[i] = list(range(i*N, (i+1)*N))
 
     # Load model to device
     if args.model == 'cnn':
@@ -47,7 +49,7 @@ if __name__ == '__main__':
             global_model = CNNMnist(args=args)
         elif args.dataset == 'fmnist':
             global_model = CNNFashion_Mnist(args=args)
-        elif args.dataset == 'cifar':
+        elif args.dataset == 'cifar10':
             global_model = CNNCifar(args=args)
     elif args.model == 'mlp':
         # Multi-layer preceptron
@@ -56,6 +58,8 @@ if __name__ == '__main__':
         for x in img_size:
             len_in *= x
             global_model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
+    elif args.model == 'lenet5':
+        global_model = LeNet5()
     else:
         exit('Error: unrecognized model')
     global_model.to(device)
@@ -68,14 +72,10 @@ if __name__ == '__main__':
 
     # Training
     train_loss = []
-    #train_accuracy = []
-    #val_acc_list, net_list = [], []
-    #cv_loss, cv_acc = [], []
     print_every = 1
-    #val_loss_pre, counter = 0, 0
 
     if args.fedvc_nvc > 0:
-        p = p = np.array([len(user_groups[user]) for user in user_groups])
+        p = p = np.array([len(train_splits[user]) for user in train_splits])
         p = p / p.sum()
         print('p = %s' % p)
 
@@ -91,17 +91,17 @@ if __name__ == '__main__':
             idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
         for idx in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset, idxs=user_groups[idx], logger=logger)
+            local_model = LocalUpdate(args=args, dataset=train_dataset, idxs=train_splits[idx], logger=logger)
             w, loss = local_model.update_weights(model=copy.deepcopy(global_model), global_round=epoch)
 
             if w is not None:
                 local_weights.append(copy.deepcopy(w))
                 local_losses.append(copy.deepcopy(loss))
-                n_k.append(len(user_groups[idx]))
+                n_k.append(len(train_splits[idx]))
 
         if len(local_weights) > 0:
             # update global weights
-            #n_k = [len(user_groups[idx_user]) for idx_user in idxs_users]
+            #n_k = [len(train_splits[idx_user]) for idx_user in idxs_users]
             global_weights = average_weights(local_weights, n_k)
 
             # update global weights
@@ -123,7 +123,7 @@ if __name__ == '__main__':
         #global_model.eval()
         #for c in range(args.num_users):
         #    local_model = LocalUpdate(args=args, dataset=train_dataset,
-        #                              idxs=user_groups[idx], logger=logger)
+        #                              idxs=train_splits[idx], logger=logger)
         #    acc, loss = local_model.inference(model=global_model)
         #    list_acc.append(acc)
         #    list_loss.append(loss)
@@ -136,7 +136,7 @@ if __name__ == '__main__':
             #print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
     # Test inference after completion of training
-    test_acc, test_loss, test_avg_acc, test_avg_loss = test_inference(args, global_model, test_dataset, test_user_groups)
+    test_acc, test_loss, test_avg_acc, test_avg_loss = test_inference(args, global_model, test_dataset, test_splits)
 
     print(f' \n Results after {args.epochs} global rounds of training:')
     #print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))

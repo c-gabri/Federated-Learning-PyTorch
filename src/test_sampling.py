@@ -1,4 +1,4 @@
-from sampling import cifar_iid, cifar_iid_noreimmission, cifar_iid_unequal, cifar_iid_unequal_noreimmission, cifar_noniid, cifar_noniid_unequal
+from sampling import cifar10_iid, cifar10_iid_noreimmission, cifar10_iid_unequal, cifar10_iid_unequal_noreimmission, cifar10_noniid, cifar10_noniid_unequal
 from torchvision import datasets, transforms
 import numpy as np
 import random
@@ -98,7 +98,7 @@ def drawHist(data,names):
     
 
 
-data_dir = '../data/cifar/'
+data_dir = '../data/cifar10/'
 num_users = 50
 apply_transform = transforms.Compose(
     [transforms.ToTensor(),
@@ -114,14 +114,15 @@ test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
 # user_groups = cifar_iid(train_dataset, num_users)
 # user_groups = cifar_iid_unequal(train_dataset, num_users)
 user_groups, distributions, user_probabilities = distribution_iid(train_dataset, num_users,0.5)
+
 labels = np.array(train_dataset.targets)
 
 
 
-for user in user_groups:
+for user in train_splits:
     print("User: " + str(user))
     distribution = [0,0,0,0,0,0,0,0,0,0]
-    for idx in user_groups[user]:
+    for idx in train_splits[user]:
         distribution[labels[int(idx)]] += 1
         # print(labels[int(idx)], end =',')
         # print(idx)

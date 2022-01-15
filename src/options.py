@@ -7,7 +7,7 @@ import argparse
 
 
 def args_parser():
-    usage = 'main.py [ARGUMENTS]'
+    usage = 'python main.py [ARGUMENTS]'
     parser = argparse.ArgumentParser(add_help=False, usage=usage, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # General arguments
@@ -16,17 +16,17 @@ def args_parser():
                         help='use centralized training')
     args_general.add_argument('--epochs', type=int, default=10,
                         help='number of rounds of training')
-    args_general.add_argument('--optimizer', type=str, default='sgd',
+    args_general.add_argument('--optimizer', type=str, default='sgd', choices=['sgd','adam'],
                         help="type of optimizer")
     args_general.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
     args_general.add_argument('--momentum', type=float, default=0,
                         help='SGD momentum')
-    args_general.add_argument('--dataset', type=str, default='cifar',
-                        help='name of dataset')
+    args_general.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10','mnist'],
+                        help='name of dataset') # TODO: remove or implement fmnist
     args_general.add_argument('--gpu', type=int, default=None,
                         help="To use cuda, set to a specific GPU ID. Default set to use CPU.")
-    args_general.add_argument('--model', type=str, default='cnn',
+    args_general.add_argument('--model', type=str, default='lenet5', choices=['lenet5','cnn','mlp'],
                         help='model name')
     args_general.add_argument('--num_classes', type=int, default=10,
                         help="number of classes") # TODO: remove (get it from dataset)
@@ -92,5 +92,6 @@ def args_parser():
         args.local_ep = 1
     if args.fedsgd:
         args.local_bs = 0
+
 
     return args

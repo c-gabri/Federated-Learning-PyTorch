@@ -154,11 +154,15 @@ class LocalUpdate(object):
         return accuracy, loss
 
 
-def test_inference(args, model, test_dataset, test_user_groups):
+def test_inference(args, model, test_dataset, test_splits):
     """ Returns the test accuracy and loss.
     """
 
     model.eval()
+
+    # if (args.model == 'resnet'):
+    #     model = torch.quantization.convert(model)
+
     loss, total, correct = 0.0, 0.0, 0.0
 
     device = 'cuda' if args.gpu is not None else 'cpu'
@@ -183,11 +187,11 @@ def test_inference(args, model, test_dataset, test_user_groups):
 
     avg_accuracy, avg_loss = 0., 0.
 
-    for client in range(len(test_user_groups)):
+    for client in range(len(test_splits)):
         loss, total, correct = 0.0, 0.0, 0.0
 
-        local_bs = args.local_bs if args.local_bs > 0 else len(test_user_groups[client])
-        testloader = DataLoader(Subset(test_dataset, test_user_groups[client]), batch_size=local_bs, shuffle=False)
+        local_bs = args.local_bs if args.local_bs > 0 else len(test_splits[client])
+        testloader = DataLoader(Subset(test_dataset, test_splits[client]), batch_size=local_bs, shuffle=False)
 
         for batch_idx, (images, labels) in enumerate(testloader):
             images, labels = images.to(device), labels.to(device)

@@ -143,7 +143,7 @@ def mnist_noniid_unequal(dataset, num_users):
     return dict_users
 
 
-def cifar_iid(dataset, num_users):
+def cifar10_iid(dataset, num_users):
     """
     Sample I.I.D. client data from CIFAR10 dataset
     :param dataset:
@@ -158,7 +158,7 @@ def cifar_iid(dataset, num_users):
         all_idxs = list(set(all_idxs) - dict_users[i])
     return dict_users
 
-def cifar_iid_noreimmission(dataset, num_users):
+def cifar10_iid_noreimmission(dataset, num_users):
     """
     Sample I.I.D. client data from CIFAR10 dataset
     :param dataset:
@@ -173,7 +173,7 @@ def cifar_iid_noreimmission(dataset, num_users):
         all_idxs = list(set(all_idxs) - dict_users[i])
     return dict_users
 
-def cifar_iid_unequal(dataset, num_users):
+def cifar10_iid_unequal(dataset, num_users):
     """
     Sample I.I.D. unequal client data from CIFAR10 dataset
     :param dataset:
@@ -192,7 +192,7 @@ def cifar_iid_unequal(dataset, num_users):
         all_idxs = list(set(all_idxs) - dict_users[i])
     return dict_users
 
-def cifar_iid_unequal_noreimmission(dataset, num_users):
+def cifar10_iid_unequal_noreimmission(dataset, num_users):
     """
     Sample I.I.D. unequal client data from CIFAR10 dataset
     :param dataset:
@@ -211,7 +211,7 @@ def cifar_iid_unequal_noreimmission(dataset, num_users):
         all_idxs = list(set(all_idxs) - dict_users[i])
     return dict_users
 
-def cifar_noniid(dataset, num_users):
+def cifar10_noniid(dataset, num_users):
     """
     Sample non-I.I.D client data from CIFAR10 dataset
     :param dataset:
@@ -239,7 +239,7 @@ def cifar_noniid(dataset, num_users):
                 (dict_users[i], idxs[rand*num_imgs:(rand+1)*num_imgs]), axis=0)
     return dict_users
 
-def cifar_noniid_unequal(dataset, num_users):
+def cifar10_noniid_unequal(dataset, num_users):
     """
     Sample non-I.I.D client data from CIFAR dataset s.t clients
     have unequal amount of data
