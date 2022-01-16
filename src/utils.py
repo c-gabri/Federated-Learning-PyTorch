@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
-from sampling import cifar_iid, cifar_noniid, cifar_noniid_unequal
+from sampling import cifar10_iid, cifar10_noniid, cifar10_noniid_unequal
 
 
 
@@ -45,7 +45,7 @@ def get_datasets_splits(args):
             # Sample Non-IID user data from CIFAR-10
             if args.unequal:
                 # Choose uneuqal splits for every user
-                user_groups = cifar_noniid_unequal(train_dataset, args.num_users)
+                user_groups = cifar10_noniid_unequal(train_dataset, args.num_users)
             else:
                 # Choose equal splits for every user
                 train_split = cifar10_noniid(train_dataset, args.num_users)
