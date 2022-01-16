@@ -7,13 +7,13 @@ import copy
 import time
 import pickle
 import numpy as np
-from tqdm import tqdm
 
 import torch
+from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
 from options import args_parser
-from update import LocalUpdate, test_inference
+from update import Client, inference
 from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar, LeNet5
 from utils import get_datasets_splits, average_weights, exp_details
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # Start timer
     start_time = time.time() # TODO: time training only
 
-    # Initialize logger
+    # Initialize logger. TODO: use or remove
     logger = SummaryWriter('../logs')
 
     # Parse arguments
@@ -33,128 +33,161 @@ if __name__ == '__main__':
         torch.cuda.set_device(args.gpu) # TODO: remove, usage is dicouraged
     device = 'cuda' if args.gpu is not None else 'cpu'
 
-    # Load datasets and client splits
-    train_dataset, test_dataset, train_splits, test_splits = get_datasets_splits(args)
+    # Load datasets and splits
+    train_dataset, test_dataset, train_split, test_split = get_datasets_splits(args)
 
-    # Fake test splits. TODO: remove after implementation of real ones
-    test_splits = {}
+    # Turn train split sets into list. TODO: remove, they should be lists already
+    for client_idx in train_split:
+        train_split[client_idx] = list(train_split[client_idx])
+
+    # Create fake test splits. TODO: remove after implementation of real ones
+    test_split = {}
     for i in range(args.num_users):
         N = int(len(test_dataset)/args.num_users)
-        test_splits[i] = list(range(i*N, (i+1)*N))
+        test_split[i] = list(range(i*N, (i+1)*N))
 
-    # Load model to device
+    # Load model
     if args.model == 'cnn':
         # Convolutional neural netork
         if args.dataset == 'mnist':
-            global_model = CNNMnist(args=args)
+            model = CNNMnist(args=args)
         elif args.dataset == 'fmnist':
-            global_model = CNNFashion_Mnist(args=args)
+            model = CNNFashion_Mnist(args=args)
         elif args.dataset == 'cifar10':
-            global_model = CNNCifar(args=args)
+            model = CNNCifar(args=args)
     elif args.model == 'mlp':
         # Multi-layer preceptron
         img_size = train_dataset[0][0].shape
         len_in = 1
         for x in img_size:
             len_in *= x
-            global_model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
+            model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
     elif args.model == 'lenet5':
-        global_model = LeNet5()
+        # LeNet5
+        model = LeNet5()
+    elif args.model == 'resnet18': # TODO: fix or remove
+        # ResNet18
+        model_fe = torchvision.models.quantization.resnet18(pretrained=True, progress=True, quantize=False)
+        model = create_combined_model(model_fe)
     else:
         exit('Error: unrecognized model')
-    global_model.to(device)
+    model.to(device)
 
-    # Print experimental details
-    exp_details(args, global_model)
+    # Quantization of Resnet18 # TODO: fix or remove
+    # if args.model == 'resnet':
+    #     model.fuse_model()
+    #     model = create_combined_model(model)
+    #     model[0].qconfig = torch.quantization.default_qat_qconfig
+    #     model = torch.quantization.prepare_qat(model, inplace=True)
 
-    # copy weights
-    global_weights = global_model.state_dict()
+    #     for param in model.parameters():
+    #         param.requires_grad = True
 
-    # Training
-    train_loss = []
-    print_every = 1
+    # Print experiment details
+    exp_details(args, model)
 
+    # Create clients
+    clients = []
+    for client_idx in range(args.num_users):
+        clients.append(Client(args=args, train_dataset=train_dataset, train_idxs=train_split[client_idx], test_dataset=test_dataset, test_idxs=test_split[client_idx], logger=logger, device=device))
+
+    # Set client sampling probabilities. TODO: allow non-uniform w/o FedVC?
     if args.fedvc_nvc > 0:
-        p = p = np.array([len(train_splits[user]) for user in train_splits])
-        p = p / p.sum()
-        print('p = %s' % p)
+        # Proportional to the number of examples
+        p_clients = np.array([len(train_split[client_idx]) for client_idx in train_split])
+        p_clients = p_clients / p_clients.sum()
+    else:
+        # Uniform
+        p_clients = None
+    print('Client sampling probabilities: %s' % p_clients)
 
-    for epoch in tqdm(range(args.epochs)):
-        local_weights, local_losses, n_k = [], [], []
-        #print(f'\n | Global Training Round : {epoch+1} |\n')
+    # Train server model
+    train_accs_avg, train_losses_avg = [], []
+    server_weights = model.state_dict() # TODO: necessary? If not, remove
+    print('\nTraining:')
 
-        global_model.train()
+    init_end_time = time.time()
+    for round in range(args.rounds):
+        client_weights, ns = [], []
+        train_acc_avg, train_loss_avg = 0., 0.
+        model.train()
+
+        # Sample clients
         m = max(int(args.frac * args.num_users), 1)
         if args.fedvc_nvc > 0:
-            idxs_users = np.random.choice(range(args.num_users), m, replace=False, p=p)
+            client_idxs = np.random.choice(range(args.num_users), m, replace=False, p=p_clients)
         else:
-            idxs_users = np.random.choice(range(args.num_users), m, replace=False)
+            client_idxs = np.random.choice(range(args.num_users), m, replace=False)
+        print('    Selected clients: %s' % client_idxs)
 
-        for idx in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset, idxs=train_splits[idx], logger=logger)
-            w, loss = local_model.update_weights(model=copy.deepcopy(global_model), global_round=epoch)
+        # Train client models
+        for i, client_idx in enumerate(client_idxs):
+            w, loss = clients[client_idx].train(model=copy.deepcopy(model), round=round, i=i, m=m)
 
             if w is not None:
-                local_weights.append(copy.deepcopy(w))
-                local_losses.append(copy.deepcopy(loss))
-                n_k.append(len(train_splits[idx]))
+                client_weights.append(copy.deepcopy(w))
+                train_loss_avg += loss * clients[client_idx].n
+                ns.append(clients[client_idx].n)
 
-        if len(local_weights) > 0:
-            # update global weights
-            #n_k = [len(train_splits[idx_user]) for idx_user in idxs_users]
-            global_weights = average_weights(local_weights, n_k)
-
-            # update global weights
-            #global_model.load_state_dict(global_weights)
-            if epoch == 0:
-                v = copy.deepcopy(global_model.state_dict())
+        # Update server model
+        if len(client_weights) > 0:
+            server_weights = average_weights(client_weights, ns)
+            if round == 0:
+                v = copy.deepcopy(model.state_dict())
                 for key in v.keys():
-                    v[key] -= global_weights[key]
+                    v[key] -= server_weights[key]
             else:
                 for key in v.keys():
-                    v[key] = args.fedavgm_momentum * v[key] + global_model.state_dict()[key] - global_weights[key]
-                    global_model.state_dict()[key] -= args.server_lr * v[key]
+                    v[key] = args.fedavgm_momentum * v[key] + model.state_dict()[key] - server_weights[key]
+            for key in v.keys():
+                model.state_dict()[key] -= args.server_lr * v[key]
 
-        loss_avg = sum(local_losses) / len(local_losses)
-        train_loss.append(loss_avg)
+            train_loss_avg /= sum(ns)
+        else:
+            train_loss_avg = None
+        train_losses_avg.append(train_loss_avg)
 
-        # Calculate avg training accuracy over all users at every epoch
-        #list_acc, list_loss = [], []
-        #global_model.eval()
-        #for c in range(args.num_users):
-        #    local_model = LocalUpdate(args=args, dataset=train_dataset,
-        #                              idxs=train_splits[idx], logger=logger)
-        #    acc, loss = local_model.inference(model=global_model)
-        #    list_acc.append(acc)
-        #    list_loss.append(loss)
-        #train_accuracy.append(sum(list_acc)/len(list_acc))
+        for client_idx, client in enumerate(clients):
+            acc, _ = client.inference(model, test=False)
+            train_acc_avg += acc * len(train_split[client_idx])
+        train_acc_avg /= len(train_dataset)
+        print('    Average client training accuracy: {:.2f}%'.format(100*train_acc_avg))
+        print('    Average client training loss: {:.6f}\n'.format(train_loss_avg))
+        train_accs_avg.append(train_acc_avg)
 
-        # print global training loss after every 'i' rounds
-        if (epoch+1) % print_every == 0:
-            print(f' \nAvg Training Stats after {epoch+1} global rounds:')
-            print(f'Training Loss : {np.mean(np.array(train_loss))}')
-            #print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
+    train_end_time = time.time()
 
-    # Test inference after completion of training
-    test_acc, test_loss, test_avg_acc, test_avg_loss = test_inference(args, global_model, test_dataset, test_splits)
+    # Test on whole test set
+    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
+    test_acc, test_loss = inference(args, model, test_loader, device)
 
-    print(f' \n Results after {args.epochs} global rounds of training:')
-    #print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
-    print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
-    print("|---- Test Loss: {:.6f}".format(test_loss))
-    print("|---- Average Test Accuracy: {:.2f}%".format(100*test_avg_acc))
-    print("|---- Average Test Loss: {:.6f}".format(test_avg_loss))
+    # Test on client test sets
+    test_acc_avg, test_loss_avg = 0., 0.
+    for client_idx in range(args.num_users):
+        accuracy, loss = clients[client_idx].inference(model, test=True)
+        test_acc_avg += len(test_split[client_idx]) * accuracy
+        test_loss_avg += len(test_split[client_idx]) * loss
+    test_acc_avg /= len(test_dataset)
+    test_loss_avg /= len(test_dataset)
+    test_end_time = time.time()
 
-    # Saving the objects train_loss and train_accuracy:
+
+    print('Results:')
+    print("    Test accuracy: {:.2f}%".format(100*test_acc))
+    print("    Test loss: {:.6f}".format(test_loss))
+    print("    Average client test accuracy: {:.2f}%".format(100*test_acc_avg))
+    print("    Average client test loss: {:.6f}".format(test_loss_avg))
+    print("    Train time: {0:0.3f}s".format(train_end_time-init_end_time))
+    print("    Test time: {0:0.3f}s".format(test_end_time-train_end_time))
+
+    # Saving the objects train_losses_avg and train_accuracy:
     file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
-        format(args.dataset, args.model, args.epochs, args.frac, args.iid,
-               args.local_ep, args.local_bs)
+        format(args.dataset, args.model, args.rounds, args.frac, args.iid,
+               args.rounds, args.batch_size)
 
     with open(file_name, 'wb') as f:
-        #pickle.dump([train_loss, train_accuracy], f)
-        pickle.dump([train_loss], f)
-
-    print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
+        #pickle.dump([train_losses_avg, train_accuracy], f)
+        pickle.dump([train_losses_avg], f)
 
     # PLOTTING (optional)
     import matplotlib
@@ -164,12 +197,12 @@ if __name__ == '__main__':
     # Plot Loss curve
     plt.figure()
     plt.title('Training Loss vs Communication rounds')
-    plt.plot(range(len(train_loss)), train_loss, color='r')
+    plt.plot(range(len(train_losses_avg)), train_losses_avg, color='r')
     plt.ylabel('Training loss')
     plt.xlabel('Communication Rounds')
     plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_loss.png'.
-                format(args.dataset, args.model, args.epochs, args.frac,
-                       args.iid, args.local_ep, args.local_bs))
+                format(args.dataset, args.model, args.rounds, args.frac,
+                       args.iid, args.rounds, args.batch_size))
 
     # Plot Average Accuracy vs Communication rounds
     #plt.figure()
@@ -178,5 +211,8 @@ if __name__ == '__main__':
     #plt.ylabel('Average Accuracy')
     #plt.xlabel('Communication Rounds')
     #plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
-    #            format(args.dataset, args.model, args.epochs, args.frac,
-    #                   args.iid, args.local_ep, args.local_bs))
+    #            format(args.dataset, args.model, args.rounds, args.frac,
+    #                   args.iid, args.rounds, args.batch_size))
+
+    print('    Total time: {0:0.3f}s'.format(time.time()-start_time))
+

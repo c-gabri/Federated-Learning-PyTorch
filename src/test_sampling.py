@@ -13,18 +13,18 @@ train_dataset = datasets.CIFAR10(data_dir, train=True, download=True,
 
 test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
                                 transform=apply_transform)
-# train_splits = cifar10_noniid_unequal(train_dataset, num_users)
-# train_splits = cifar10_noniid(train_dataset, num_users)
-# train_splits = cifar10_iid(train_dataset, num_users)
-train_splits = cifar10_iid_unequal(train_dataset, num_users)
+# train_split = cifar10_noniid_unequal(train_dataset, num_users)
+# train_split = cifar10_noniid(train_dataset, num_users)
+# train_split = cifar10_iid(train_dataset, num_users)
+train_split = cifar10_iid_unequal(train_dataset, num_users)
 labels = np.array(train_dataset.targets)
 
 
 
-for user in train_splits:
+for user in train_split:
     print("User: " + str(user))
     distribution = [0,0,0,0,0,0,0,0,0,0]
-    for idx in train_splits[user]:
+    for idx in train_split[user]:
         distribution[labels[int(idx)]] += 1
         # print(labels[int(idx)], end =',')
         # print(idx)

@@ -4,6 +4,7 @@
 
 
 import argparse
+import numpy as np
 
 
 def args_parser():
@@ -14,41 +15,39 @@ def args_parser():
     args_general = parser.add_argument_group('general arguments')
     args_general.add_argument('--centralized', action='store_true', default=False,
                         help='use centralized training')
-    args_general.add_argument('--epochs', type=int, default=10,
-                        help='number of rounds of training')
+    args_general.add_argument('--epochs', '-E', type=int, default=10,
+                        help='number of epochs')
+    args_general.add_argument('--batch_size', '-B', type=int, default=10,
+                        help='batch size')
     args_general.add_argument('--optimizer', type=str, default='sgd', choices=['sgd','adam'],
-                        help="type of optimizer")
+                        help='optimizer name')
     args_general.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
     args_general.add_argument('--momentum', type=float, default=0,
                         help='SGD momentum')
     args_general.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10','mnist'],
-                        help='name of dataset') # TODO: remove or implement fmnist
+                        help='dataset name') # TODO: remove or implement fmnist
     args_general.add_argument('--gpu', type=int, default=None,
-                        help="To use cuda, set to a specific GPU ID. Default set to use CPU.")
-    args_general.add_argument('--model', type=str, default='lenet5', choices=['lenet5','cnn','mlp'],
-                        help='model name')
+                        help='GPU ID')
+    args_general.add_argument('--model', type=str, default='lenet5', choices=['lenet5','resnet18','cnn','mlp'],
+                        help='model name') # TODO: fix or remove resnet18
     args_general.add_argument('--num_classes', type=int, default=10,
-                        help="number of classes") # TODO: remove (get it from dataset)
+                        help='number of classes') # TODO: remove (get it from dataset)
     #args_general.add_argument('--stopping_rounds', type=int, default=10,
     #                    help='rounds of early stopping') # TODO: remove or implement
     #args_general.add_argument('--seed', type=int, default=1,
     #                    help='random seed') # TODO: implement
-    args_general.add_argument('--verbose', '-v', action='store_true', default=True,
-                        help='verbose')
     args_general.add_argument('--help', '-h', action='store_true', default=False,
                         help='show this help message and exit')
 
     # Federated arguments
     args_fed = parser.add_argument_group('federated arguments')
+    args_fed.add_argument('--rounds', '-T', type=int, default=10,
+                        help='communication rounds')
     args_fed.add_argument('--num_users', '-K', type=int, default=100,
                         help='number of clients')
     args_fed.add_argument('--frac', '-C', type=float, default=0.1,
                         help='fraction of clients')
-    args_fed.add_argument('--local_ep', '-E', type=int, default=10,
-                        help='number of local epochs')
-    args_fed.add_argument('--local_bs', '-B', type=int, default=10,
-                        help='local batch size')
     args_fed.add_argument('--server_lr', type=float, default=1,
                         help='server learning rate')
     args_fed.add_argument('--iid', type=int, default=1,
@@ -83,15 +82,48 @@ def args_parser():
     args_model.add_argument('--max_pool', type=str, default='True',
                         help='Whether use max pooling rather than strided convolutions')
 
+    # Output arguments
+    args_output = parser.add_argument_group('output arguments')
+    args_output.add_argument('--quiet', '-q', action='store_true', default=False,
+                        help='less verbose output')
+    args_output.add_argument('--batch_print_interval', type=int, default=1,
+                        help='print stats every specified number of batches')
+    args_output.add_argument('--epoch_print_interval', type=int, default=1,
+                        help='print stats every specified number of epochs')
+
     args = parser.parse_args()
     if args.help:
         parser.print_help()
         exit()
 
-    if args.fedvc_nvc > 0 or args.fedsgd:
-        args.local_ep = 1
+    if args.fedvc_nvc > 0:
+        args.epochs = 1
     if args.fedsgd:
-        args.local_bs = 0
-
+        args.epochs = 1
+        args.batch_size = 0
+    elif args.epochs == 1 and args.batch_size == 0:
+        args.fedsgd = True
+    if args.centralized:
+        args.num_users = 1
+        args.rounds = 1
+        args.hetero = 0
+        args.fedvc_nvc = 0
+        args.fedir = False
+        args.fedprox_mu = 0
+        args.fedsgd = False
+        args.server_lr = 0
+        args.fedavgm_momentum = 0
+    elif (args.num_users == 1 and
+          args.rounds == 1 and
+          not args.hetero and
+          not args.fedvc_nvc and
+          not args.fedir and
+          not args.fedprox_mu and
+          not args.fedsgd and
+          not args.server_lr and
+          not args.fedavgm_momentum):
+        args.centralized = True
+    if args.batch_print_interval == 0: args.batch_print_interval = np.inf
+    if args.epoch_print_interval == 0: args.epoch_print_interval = np.inf
 
     return args
