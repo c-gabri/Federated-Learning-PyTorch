@@ -22,12 +22,12 @@ class Client(object):
 
         # Create dataloaders
         self.batch_size = self.args.batch_size if self.args.batch_size > 0 else len(train_idxs)
-        if args.fedvc_nvc == 0:
-            self.train_loader = DataLoader(Subset(train_dataset, train_idxs), batch_size=self.batch_size, shuffle=True)
-            self.n = len(train_idxs)
+        self.train_loader = DataLoader(Subset(train_dataset, train_idxs), batch_size=self.batch_size, shuffle=True) if len(train_idxs) > 0 else None
+        self.test_loader = DataLoader(Subset(test_dataset, test_idxs), batch_size=128, shuffle=False) if len(test_idxs) > 0 else None # TODO: test batch size as command line argument?
+        if len(train_idxs) > 0:
+            self.n = len(train_idxs) if args.fedvc_nvc == 0 else args.fedvc_nvc
         else:
-            self.n = args.fedvc_nvc
-        self.test_loader = DataLoader(Subset(test_dataset, test_idxs), batch_size=128, shuffle=False) # TODO: test batch size as command line argument?
+            self.n = 0
 
         # Set criterion
         if args.fedir:
@@ -43,6 +43,10 @@ class Client(object):
         self.criterion = nn.NLLLoss(weight=weight).to(self.device)
 
     def train(self, model, round, i, m):
+        # Drop client if train set is empty
+        if self.train_loader is None:
+            return None, None
+
         # Set optimizer
         if self.args.optimizer == 'sgd':
             optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, momentum=self.args.momentum)
@@ -66,7 +70,9 @@ class Client(object):
         if self.args.fedvc_nvc > 0:
             replace = False if len(self.train_idxs) >= self.args.fedvc_nvc else True
             idxsvc = np.random.choice(self.train_idxs, self.args.fedvc_nvc, replace=replace)
-            self.train_loader = DataLoader(Subset(self.train_dataset, idxsvc), batch_size=self.batch_size, shuffle=True)
+            self.train_loader_round = DataLoader(Subset(self.train_dataset, idxsvc), batch_size=self.batch_size, shuffle=True)
+        else:
+            self.train_loader_round = self.train_loader
 
         # Initialize FedProx
         if self.args.fedprox_mu > 0:
@@ -80,7 +86,7 @@ class Client(object):
 
         for epoch in range(epochs):
             batch_loss = []
-            for batch, (examples, labels) in enumerate(self.train_loader):
+            for batch, (examples, labels) in enumerate(self.train_loader_round):
                 examples, labels = examples.to(self.device), labels.to(self.device)
 
                 model.zero_grad()
@@ -99,14 +105,14 @@ class Client(object):
                 optimizer.step()
 
                 # Print stats every batch_print_interval batches of every epoch_print_interval epochs, or at the last batch of the last epoch
-                if not self.args.quiet and ((epoch+1) % epoch_print_interval == 0 and ((batch+1) % batch_print_interval == 0 or batch+1 == len(self.train_loader)) or (epoch+1 == epochs and batch+1 == len(self.train_loader))):
+                if not self.args.quiet and ((epoch+1) % epoch_print_interval == 0 and ((batch+1) % batch_print_interval == 0 or batch+1 == len(self.train_loader_round)) or (epoch+1 == epochs and batch+1 == len(self.train_loader_round))):
                     print('    Round: {}/{} | Client: {}/{} | Epoch: {}/{} | Example: {}/{} | Batch loss: {:.6f}'.format(
                         round+1, self.args.rounds,
                         i+1, m,
                         epoch+1, epochs,
-                        (batch+1)*len(examples), len(self.train_loader.dataset),
+                        (batch+1)*len(examples), len(self.train_loader_round.dataset),
                         loss.item()), end='')
-                    if batch < len(self.train_loader)-1: print()
+                    if batch < len(self.train_loader_round)-1: print()
                 batch_loss.append(loss.item())
                 self.logger.add_scalar('loss', loss.item()) # TODO: use or remove
 
@@ -122,13 +128,15 @@ class Client(object):
         return model.state_dict(), round_loss # TODO: client should return model update, not model
 
     def inference(self, model, test=True):
-        loader = self.test_loader if test else DataLoader(Subset(self.train_dataset, self.train_idxs), batch_size=self.batch_size, shuffle=False)
+        loader = self.test_loader if test else self.train_loader
 
         return inference(self.args, model, loader, self.device)
 
 def inference(args, model, loader, device):
     """ Returns test accuracy and loss
     """
+    if loader is None:
+        return None, None
 
     criterion = nn.NLLLoss().to(device) # TODO: use same criterion used during training?
 

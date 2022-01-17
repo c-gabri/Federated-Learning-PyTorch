@@ -3,6 +3,7 @@
 # Python version: 3.8.10
 
 
+import sys
 import argparse
 import numpy as np
 
@@ -27,7 +28,7 @@ def args_parser():
                         help='SGD momentum')
     args_general.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10','mnist'],
                         help='dataset name') # TODO: remove or implement fmnist
-    args_general.add_argument('--gpu', type=int, default=None,
+    args_general.add_argument('--gpu', type=int, default=0,
                         help='GPU ID')
     args_general.add_argument('--model', type=str, default='lenet5', choices=['lenet5','resnet18','cnn','mlp'],
                         help='model name') # TODO: fix or remove resnet18
@@ -50,10 +51,10 @@ def args_parser():
                         help='fraction of clients')
     args_fed.add_argument('--server_lr', type=float, default=1,
                         help='server learning rate')
-    args_fed.add_argument('--iid', type=int, default=1,
-                        help='Default set to IID. Set to 0 for non-IID.')
-    args_fed.add_argument('--unequal', type=int, default=0,
-                        help='whether to use unequal data splits for non-i.i.d setting (use 0 for equal splits)')
+    args_fed.add_argument('--iid', type=float, default=sys.maxsize,
+                        help='Identicalness of class distributions')
+    args_fed.add_argument('--balance', type=float, default=sys.maxsize,
+                        help='Client balance')
     args_fed.add_argument('--hetero', type=float, default=0,
                         help='system heterogeneity')
     args_fed.add_argument('--fedsgd', action='store_true', default=False,

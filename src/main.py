@@ -37,14 +37,14 @@ if __name__ == '__main__':
     train_dataset, test_dataset, train_split, test_split = get_datasets_splits(args)
 
     # Turn train split sets into list. TODO: remove, they should be lists already
-    for client_idx in train_split:
-        train_split[client_idx] = list(train_split[client_idx])
+    #for client_idx in train_split:
+    #    train_split[client_idx] = list(train_split[client_idx])
 
     # Create fake test splits. TODO: remove after implementation of real ones
-    test_split = {}
-    for i in range(args.num_users):
-        N = int(len(test_dataset)/args.num_users)
-        test_split[i] = list(range(i*N, (i+1)*N))
+    #test_split = {}
+    #for i in range(args.num_users):
+    #    N = int(len(test_dataset)/args.num_users)
+    #    test_split[i] = list(range(i*N, (i+1)*N))
 
     # Load model
     if args.model == 'cnn':
@@ -114,10 +114,7 @@ if __name__ == '__main__':
 
         # Sample clients
         m = max(int(args.frac * args.num_users), 1)
-        if args.fedvc_nvc > 0:
-            client_idxs = np.random.choice(range(args.num_users), m, replace=False, p=p_clients)
-        else:
-            client_idxs = np.random.choice(range(args.num_users), m, replace=False)
+        client_idxs = np.random.choice(range(args.num_users), m, replace=False, p=p_clients)
         print('    Selected clients: %s' % client_idxs)
 
         # Train client models
@@ -149,7 +146,7 @@ if __name__ == '__main__':
 
         for client_idx, client in enumerate(clients):
             acc, _ = client.inference(model, test=False)
-            train_acc_avg += acc * len(train_split[client_idx])
+            if acc is not None: train_acc_avg += acc * len(train_split[client_idx])
         train_acc_avg /= len(train_dataset)
         print('    Average client training accuracy: {:.2f}%'.format(100*train_acc_avg))
         print('    Average client training loss: {:.6f}\n'.format(train_loss_avg))
@@ -164,9 +161,10 @@ if __name__ == '__main__':
     # Test on client test sets
     test_acc_avg, test_loss_avg = 0., 0.
     for client_idx in range(args.num_users):
-        accuracy, loss = clients[client_idx].inference(model, test=True)
-        test_acc_avg += len(test_split[client_idx]) * accuracy
-        test_loss_avg += len(test_split[client_idx]) * loss
+        acc, loss = clients[client_idx].inference(model, test=True)
+        if acc is not None:
+            test_acc_avg += len(test_split[client_idx]) * acc
+            test_loss_avg += len(test_split[client_idx]) * loss
     test_acc_avg /= len(test_dataset)
     test_loss_avg /= len(test_dataset)
     test_end_time = time.time()

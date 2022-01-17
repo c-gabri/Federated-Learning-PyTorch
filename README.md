@@ -17,42 +17,40 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * tensorboardX 2.4.1
 * torch 1.10.0
 * torchvision 0.11.1
-* tqdm 4.62.3
 
 ## Usage
 ```python main.py [ARGUMENTS]```
 
 ### General arguments:
 * ```--centralized```:         use centralized training (default: ```False```)
-* ```--epochs EPOCHS```:       number of rounds of training (default: ```10```)
+* ```--epochs EPOCHS, -E EPOCHS```:
+                        number of epochs (default: ```10```)
+* ```--batch_size BATCH_SIZE, -B BATCH_SIZE```:
+                        batch size (default: ```10```)
 * ```--optimizer {sgd,adam}```:
-                        type of optimizer (default: ```sgd```)
+                        optimizer name (default: ```sgd```)
 * ```--lr LR```:               learning rate (default: ```0.01```)
 * ```--momentum MOMENTUM```:   SGD momentum (default: ```0```)
 * ```--dataset {cifar10,mnist}```:
-                        name of dataset (default: ```cifar10```)
-* ```--gpu GPU```:             To use cuda, set to a specific GPU ID. Default set to
-                        use CPU. (default: ```None```)
-* ```--model {lenet5,cnn,mlp}```:
+                        dataset name (default: ```cifar10```)
+* ```--gpu GPU```:             GPU ID (default: ```0```)
+* ```--model {lenet5,resnet18,cnn,mlp}```:
                         model name (default: ```lenet5```)
 * ```--num_classes NUM_CLASSES```:
                         number of classes (default: ```10```)
-* ```--verbose, -v```:         verbose (default: ```True```)
 * ```--help, -h```:            show this help message and exit (default: ```False```)
 
 ### Federated arguments:
+* ```--rounds ROUNDS, -T ROUNDS```:
+                        communication rounds (default: ```10```)
 * ```--num_users NUM_USERS, -K NUM_USERS```:
                         number of clients (default: ```100```)
 * ```--frac FRAC, -C FRAC```:  fraction of clients (default: ```0.1```)
-* ```--local_ep LOCAL_EP, -E LOCAL_EP```:
-                        number of local epochs (default: ```10```)
-* ```--local_bs LOCAL_BS, -B LOCAL_BS```:
-                        local batch size (default: ```10```)
 * ```--server_lr SERVER_LR```:
                         server learning rate (default: ```1```)
-* ```--iid IID```:             Default set to IID. Set to 0 for non-IID. (default: ```1```)
-* ```--unequal UNEQUAL```:     whether to use unequal data splits for non-i.i.d
-                        setting (use 0 for equal splits) (default: ```0```)
+* ```--iid IID```:             Identicalness of class distributions (default:
+                        9223372036854775807)
+* ```--balance BALANCE```:     Client balance (default: ```9223372036854775807```)
 * ```--hetero HETERO```:       system heterogeneity (default: ```0```)
 * ```--fedsgd```:              use FedSGD algorithm (default: ```False```)
 * ```--fedavgm_momentum FEDAVGM_MOMENTUM```:
@@ -79,5 +77,14 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
                         imagenet, 64 for omiglot. (default: ```32```)
 * ```--max_pool MAX_POOL```:   Whether use max pooling rather than strided
                         convolutions (default: ```True```)
+
+### Output arguments:
+* ```--quiet, -q```:           less verbose output (default: ```False```)
+* ```--batch_print_interval BATCH_PRINT_INTERVAL```:
+                        print stats every specified number of batches
+                        (default: ```1```)
+* ```--epoch_print_interval EPOCH_PRINT_INTERVAL```:
+                        print stats every specified number of epochs (default:
+                        1)
 
 ## Experiments

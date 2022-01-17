@@ -8,6 +8,34 @@ from torchvision import datasets, transforms
 import random
 
 
+def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
+    splits = ({}, {})
+
+    C = len(train_dataset.classes)
+    p_class = np.array([1/C]*C)
+    p_client = np.array([1/K]*K)
+    q_class = np.random.dirichlet(alpha_class*p_class, K)
+    q_client = np.random.dirichlet(alpha_client*p_client).reshape((K,1))
+
+    for i, ds in enumerate((train_dataset, test_dataset)):
+        N = len(ds)
+
+        #N_client = (q_client*N).round().astype(int)
+        #N_client[np.random.randint(low=0, high=K)] +=  N - N_client.sum()
+        #print(N_client.sum())
+
+        N_class = np.array([(np.array(ds.targets) == c).sum() for c in range(C)]).reshape((1,C))
+        N_class_client = ((q_class*N_class)/(q_class*N_class).sum(1, keepdims=True)*(q_client*N)).round().astype(int)
+
+        for c in range(C):
+            idxs_class = (np.array(ds.targets) == c).nonzero()[0]
+            for k in range(K):
+                if c == 0: splits[i][k] = []
+                replace = True if N_class_client[k,c] > len(idxs_class) else False
+                splits[i][k] += list(np.random.choice(idxs_class, N_class_client[k,c], replace=replace))
+
+    return splits
+
 def mnist_iid(dataset, num_users):
     """
     Sample I.I.D. client data from MNIST dataset
