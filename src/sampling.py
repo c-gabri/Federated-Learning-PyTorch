@@ -12,7 +12,6 @@ import sys
 
 def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
     splits = ({}, {})
-    dists = []
 
     C = len(train_dataset.classes)
     p_class = np.array([1/C]*C)
@@ -44,13 +43,12 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
         alpha_client_str = '∞' if alpha_client == sys.maxsize else str(alpha_client)
         plt.title('$α_{class} = %s, α_{client} = %s$' % (alpha_class_str, alpha_client_str))
         plt.savefig('../save/distribution%s.png' % i)
-        plt.show()
+        #plt.show()
 
-        dists.append(N_class_client)
-        print(N_class_client)
-        print(N_class_client.sum())
-        print(N_class_client.sum(0))
-        print(N_class_client.sum(1))
+        #print(N_class_client)
+        #print(N_class_client.sum())
+        #print(N_class_client.sum(0))
+        #print(N_class_client.sum(1))
 
         for c in range(C):
             idxs_class = set((np.array(dataset.targets) == c).nonzero()[0])
@@ -62,7 +60,7 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
 
         for k in range(K): splits[i][k] = list(splits[i][k])
 
-    return dists
+    return splits
 
 def mnist_iid(dataset, num_users):
     """
