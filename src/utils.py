@@ -8,7 +8,7 @@ from torch import nn
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
 from sampling import cifar10_iid, cifar10_noniid, cifar10_noniid_unequal
-
+from sampling import get_splits
 
 
 def get_datasets_splits(args):
@@ -37,18 +37,18 @@ def get_datasets_splits(args):
         test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
-        # sample training data amongst users
-        if args.iid:
-            # Sample IID user data from CIFAR-10
-            train_split = cifar10_iid(train_dataset, args.num_users)
-        else:
-            # Sample Non-IID user data from CIFAR-10
-            if args.unequal:
-                # Choose uneuqal splits for every user
-                user_groups = cifar10_noniid_unequal(train_dataset, args.num_users)
-            else:
-                # Choose equal splits for every user
-                train_split = cifar10_noniid(train_dataset, args.num_users)
+        ## sample training data amongst users
+        #if args.iid:
+        #    # Sample IID user data from CIFAR-10
+        #    train_split = cifar10_iid(train_dataset, args.num_users)
+        #else:
+        #    # Sample Non-IID user data from CIFAR-10
+        #    if args.unequal:
+        #        # Choose uneuqal splits for every user
+        #        user_groups = cifar10_noniid_unequal(train_dataset, args.num_users)
+        #    else:
+        #        # Choose equal splits for every user
+        #        train_split = cifar10_noniid(train_dataset, args.num_users)
 
     elif args.dataset == 'mnist' or 'fmnist':
         if args.dataset == 'mnist':
@@ -66,20 +66,20 @@ def get_datasets_splits(args):
         test_dataset = datasets.MNIST(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
-        # sample training data amongst users
-        if args.iid:
-            # Sample IID user data from Mnist
-            train_split = mnist_iid(train_dataset, args.num_users)
-        else:
-            # Sample Non-IID user data from Mnist
-            if args.unequal:
-                # Chose uneuqal splits for every user
-                train_split = mnist_noniid_unequal(train_dataset, args.num_users)
-            else:
-                # Chose euqal splits for every user
-                train_split = mnist_noniid(train_dataset, args.num_users)
+        ## sample training data amongst users
+        #if args.iid:
+        #    # Sample IID user data from Mnist
+        #    train_split = mnist_iid(train_dataset, args.num_users)
+        #else:
+        #    # Sample Non-IID user data from Mnist
+        #    if args.unequal:
+        #        # Chose uneuqal splits for every user
+        #        train_split = mnist_noniid_unequal(train_dataset, args.num_users)
+        #    else:
+        #        # Chose euqal splits for every user
+        #        train_split = mnist_noniid(train_dataset, args.num_users)
 
-    test_split = None # TODO: implement
+    train_split, test_split = get_splits(train_dataset, test_dataset, args.num_users, args.iid, args.balance)
 
     return train_dataset, test_dataset, train_split, test_split
 
@@ -140,7 +140,7 @@ def exp_details(args, model):
         print(f'    Server learning rate : {args.server_lr}')
         print(f'    Server momentum      : {args.fedavgm_momentum}')
         print(f'    IID                  : {args.iid}')
-        print(f'    Imbalance            : {args.unequal}')
+        print(f'    Balance              : {args.balance}')
         print(f'    System heterogeneity : {args.hetero}')
         #print(f'    FedIR                : {args.fedir}')
         print(f'    FedVC client size    : {args.fedvc_nvc}')
