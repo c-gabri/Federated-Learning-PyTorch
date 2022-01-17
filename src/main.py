@@ -188,19 +188,19 @@ if __name__ == '__main__':
         pickle.dump([train_losses_avg], f)
 
     # PLOTTING (optional)
-    import matplotlib
-    import matplotlib.pyplot as plt
-    matplotlib.use('Agg')
+    #import matplotlib
+    #import matplotlib.pyplot as plt
+    #matplotlib.use('Agg')
 
     # Plot Loss curve
-    plt.figure()
-    plt.title('Training Loss vs Communication rounds')
-    plt.plot(range(len(train_losses_avg)), train_losses_avg, color='r')
-    plt.ylabel('Training loss')
-    plt.xlabel('Communication Rounds')
-    plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_loss.png'.
-                format(args.dataset, args.model, args.rounds, args.frac,
-                       args.iid, args.rounds, args.batch_size))
+    #plt.figure()
+    #plt.title('Training Loss vs Communication rounds')
+    #plt.plot(range(len(train_losses_avg)), train_losses_avg, color='r')
+    #plt.ylabel('Training loss')
+    #plt.xlabel('Communication Rounds')
+    #plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_loss.png'.
+    #            format(args.dataset, args.model, args.rounds, args.frac,
+    #                   args.iid, args.rounds, args.batch_size))
 
     # Plot Average Accuracy vs Communication rounds
     #plt.figure()

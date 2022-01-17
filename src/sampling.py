@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.6
+# Python version: 3.8.10
 
 
 import numpy as np
 from torchvision import datasets, transforms
 import random
+import matplotlib.pyplot as plt
+import sys
 
 
 def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
     splits = ({}, {})
+    dists = []
 
     C = len(train_dataset.classes)
     p_class = np.array([1/C]*C)
@@ -17,24 +20,49 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
     q_class = np.random.dirichlet(alpha_class*p_class, K)
     q_client = np.random.dirichlet(alpha_client*p_client).reshape((K,1))
 
-    for i, ds in enumerate((train_dataset, test_dataset)):
-        N = len(ds)
-
-        #N_client = (q_client*N).round().astype(int)
-        #N_client[np.random.randint(low=0, high=K)] +=  N - N_client.sum()
-        #print(N_client.sum())
-
-        N_class = np.array([(np.array(ds.targets) == c).sum() for c in range(C)]).reshape((1,C))
+    for i, dataset in enumerate((train_dataset, test_dataset)):
+        N = len(dataset)
+        N_class = np.array([(np.array(dataset.targets) == c).sum() for c in range(C)]).reshape((1,C))
         N_class_client = ((q_class*N_class)/(q_class*N_class).sum(1, keepdims=True)*(q_client*N)).round().astype(int)
 
+        diff = N_class[0] - N_class_client.sum(0)
         for c in range(C):
-            idxs_class = (np.array(ds.targets) == c).nonzero()[0]
-            for k in range(K):
-                if c == 0: splits[i][k] = []
-                replace = True if N_class_client[k,c] > len(idxs_class) else False
-                splits[i][k] += list(np.random.choice(idxs_class, N_class_client[k,c], replace=replace))
+            while(diff[c] != 0):
+                k = np.random.randint(low=0, high=K)
+                if N_class_client[k,c] + np.sign(diff[c]) >= 0:
+                    N_class_client[k,c] += np.sign(diff[c])
+                    diff[c] -= np.sign(diff[c])
 
-    return splits
+        y = np.arange(1,K+1)
+        left = np.repeat(0,K)
+        for c in range(C):
+            plt.barh(y, N_class_client[:,c], left=left, height=1)
+            left += N_class_client[:,c]
+        plt.xlabel('Class distribution')
+        plt.ylabel('Client')
+        alpha_class_str = '∞' if alpha_class == sys.maxsize else str(alpha_class)
+        alpha_client_str = '∞' if alpha_client == sys.maxsize else str(alpha_client)
+        plt.title('$α_{class} = %s, α_{client} = %s$' % (alpha_class_str, alpha_client_str))
+        plt.savefig('../save/distribution%s.png' % i)
+        plt.show()
+
+        dists.append(N_class_client)
+        print(N_class_client)
+        print(N_class_client.sum())
+        print(N_class_client.sum(0))
+        print(N_class_client.sum(1))
+
+        for c in range(C):
+            idxs_class = set((np.array(dataset.targets) == c).nonzero()[0])
+            for k in range(K):
+                if c == 0: splits[i][k] = set()
+                idxs_class_client = set(np.random.choice(list(idxs_class), N_class_client[k,c], replace=False))
+                splits[i][k] = splits[i][k].union(idxs_class_client)
+                idxs_class -= idxs_class_client
+
+        for k in range(K): splits[i][k] = list(splits[i][k])
+
+    return dists
 
 def mnist_iid(dataset, num_users):
     """
