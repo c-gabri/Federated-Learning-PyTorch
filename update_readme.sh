@@ -8,7 +8,7 @@ sed -E 's/(^python\ .*)/```\1```/' | \
 sed -E 's/^[a-z]/###\ \u&/' | \
 sed 's/^\ \ --/\*\ --/' | \
 sed -E 's/(--[^[:space:]]+(\ [^[:space:]]+)?(,\ -[^[:space:]]+(\ [^[:space:]]+)?)?)/```\1```:/' | \
-sed -E 's/default:\ (.*)\)/default:\ ```\1```\)/')
+sed -E 's/default:\ ([^[:space:]]+)\)/default:\ ```\1```\)/')
 
 requirements="* python $(grep 'Python version' src/main.py | cut -d ':' -f2 | tr -d ' ')"
 requirements=$(echo "$requirements"; sort requirements.txt | sed 's/==/\ /; s/^/*\ /')

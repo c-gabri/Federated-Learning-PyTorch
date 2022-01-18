@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.8.10
@@ -5,11 +6,15 @@
 
 import argparse
 import numpy as np
+import pandas as pd
+
+pd.options.display.max_colwidth=1000
+pd.options.display.max_columns=1000
 
 
 def args_parser():
     usage = 'python main.py [ARGUMENTS]'
-    parser = argparse.ArgumentParser(prog='main.py', add_help=False, usage=usage, formatter_class=lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=30))
+    parser = argparse.ArgumentParser(prog='main.py', add_help=False, usage=usage, formatter_class=lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=1000, width=1000))
 
     # General arguments
     args_general = parser.add_argument_group('general arguments')
@@ -91,7 +96,9 @@ def args_parser():
 
     args = parser.parse_args()
     if args.help:
-        parser.print_help()
+        help = parser.format_help()
+        print(help)
+        #parser.print_help()
         exit()
 
     if args.fedvc_nvc > 0:
