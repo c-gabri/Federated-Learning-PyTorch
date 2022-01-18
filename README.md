@@ -30,7 +30,7 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * ```--optimizer {sgd,adam}```:
                         optimizer name (default: ```sgd```)
 * ```--lr LR```:               learning rate (default: ```0.01```)
-* ```--momentum MOMENTUM```:   SGD momentum (default: ```0```)
+* ```--momentum MOMENTUM```:   SGD momentum (default: ```0.5```)
 * ```--dataset {cifar10,mnist}```:
                         dataset name (default: ```cifar10```)
 * ```--gpu GPU```:             GPU ID (default: ```0```)
@@ -52,7 +52,7 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * ```--balance BALANCE```:     Client balance (default: ```inf```)
 * ```--hetero HETERO```:       system heterogeneity (default: ```0```)
 * ```--fedsgd```:              use FedSGD algorithm (default: ```False```)
-* ```--fedavgm_momentum FEDAVGM_MOMENTUM```:
+* ```--server_momentum SERVER_MOMENTUM```:
                         use FedAvgM algorithm with specified server momentum
                         (default: ```0```)
 * ```--fedir```:               use FedIR algorithm (default: ```False```)
@@ -81,7 +81,7 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * ```--quiet, -q```:           less verbose output (default: ```False```)
 * ```--batch_print_interval BATCH_PRINT_INTERVAL```:
                         print stats every specified number of batches
-                        (default: ```1```)
+                        (default: ```0```)
 * ```--epoch_print_interval EPOCH_PRINT_INTERVAL```:
                         print stats every specified number of epochs (default:
                         1)
