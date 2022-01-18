@@ -29,9 +29,9 @@ if __name__ == '__main__':
     args = args_parser()
 
     # Set device
-    if args.gpu is not None:
-        torch.cuda.set_device(args.gpu) # TODO: remove, usage is dicouraged
-    device = 'cuda' if args.gpu is not None else 'cpu'
+    #if args.gpu is not None:
+    #    torch.cuda.set_device(args.gpu) # TODO: remove, usage is dicouraged
+    device = 'cuda:%d' % args.gpu if args.gpu is not None else 'cpu'
 
     # Load datasets and splits
     train_dataset, test_dataset, train_split, test_split = get_datasets_splits(args)

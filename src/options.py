@@ -3,7 +3,6 @@
 # Python version: 3.8.10
 
 
-import sys
 import argparse
 import numpy as np
 

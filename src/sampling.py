@@ -7,7 +7,6 @@ import numpy as np
 from torchvision import datasets, transforms
 import random
 import matplotlib.pyplot as plt
-import sys
 
 
 def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
@@ -47,18 +46,22 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
         #            N_class_client[k,c] += np.sign(diff[c])
         #            diff[c] -= np.sign(diff[c])
 
-        y = np.arange(1,K+1)
-        left = np.repeat(0,K)
+        num_clients_plot = min(30,K)
+        y = np.arange(num_clients_plot)
+        left = np.repeat(0,num_clients_plot)
+        ks = np.random.choice(np.arange(K), num_clients_plot, replace=False)
         for c in range(C):
-            plt.barh(y, N_class_client[:,c], left=left, height=1)
-            left += N_class_client[:,c]
+            plt.barh(y, N_class_client[ks,c], left=left, height=1)
+            left += N_class_client[ks,c]
+        plt.xlim((0,max(left)))
         plt.xlabel('Class distribution')
         plt.ylabel('Client')
-        alpha_class_str = '∞' if alpha_class == float('inf') else str(alpha_class)
-        alpha_client_str = '∞' if alpha_client == float('inf') else str(alpha_client)
-        plt.title('$α_{class} = %s, α_{client} = %s$' % (alpha_class_str, alpha_client_str))
+        alpha_class_str = '∞' if alpha_class == float('inf') else '%g' % alpha_class
+        alpha_client_str = '∞' if alpha_client == float('inf') else '%g' % alpha_client
+        plt.title('$α_{class} = %s, α_{client} = $%s' % (alpha_class_str, alpha_client_str))
+        plt.tight_layout()
         split_type = 'train' if i == 0 else 'test'
-        plt.savefig('../save/distribution_%s.png' % split_type)
+        plt.savefig('../save/distribution_%s.png' % split_type, dpi='figure')
         plt.show()
 
         #print(N_class_client)
