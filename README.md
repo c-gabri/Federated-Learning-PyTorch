@@ -48,9 +48,8 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * ```--frac FRAC, -C FRAC```:  fraction of clients (default: ```0.1```)
 * ```--server_lr SERVER_LR```:
                         server learning rate (default: ```1```)
-* ```--iid IID```:             Identicalness of class distributions (default:
-                        9223372036854775807)
-* ```--balance BALANCE```:     Client balance (default: ```9223372036854775807```)
+* ```--iid IID```:             Identicalness of class distributions (default: ```inf```)
+* ```--balance BALANCE```:     Client balance (default: ```inf```)
 * ```--hetero HETERO```:       system heterogeneity (default: ```0```)
 * ```--fedsgd```:              use FedSGD algorithm (default: ```False```)
 * ```--fedavgm_momentum FEDAVGM_MOMENTUM```:
