@@ -15,12 +15,12 @@ from tensorboardX import SummaryWriter
 from options import args_parser
 from update import Client, inference
 from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar, LeNet5
-from utils import get_datasets_splits, average_weights, exp_details
+from utils import get_datasets_splits, average_updates, exp_details
 
 
 if __name__ == '__main__':
     # Start timer
-    start_time = time.time() # TODO: time training only
+    start_time = time.time()
 
     # Initialize logger. TODO: use or remove
     logger = SummaryWriter('../logs')
@@ -29,22 +29,10 @@ if __name__ == '__main__':
     args = args_parser()
 
     # Set device
-    #if args.gpu is not None:
-    #    torch.cuda.set_device(args.gpu) # TODO: remove, usage is dicouraged
     device = 'cuda:%d' % args.gpu if args.gpu is not None else 'cpu'
 
     # Load datasets and splits
     train_dataset, test_dataset, train_split, test_split = get_datasets_splits(args)
-
-    # Turn train split sets into list. TODO: remove, they should be lists already
-    #for client_idx in train_split:
-    #    train_split[client_idx] = list(train_split[client_idx])
-
-    # Create fake test splits. TODO: remove after implementation of real ones
-    #test_split = {}
-    #for i in range(args.num_users):
-    #    N = int(len(test_dataset)/args.num_users)
-    #    test_split[i] = list(range(i*N, (i+1)*N))
 
     # Load model
     if args.model == 'cnn':
@@ -99,18 +87,18 @@ if __name__ == '__main__':
     else:
         # Uniform
         p_clients = None
-    print('Client sampling probabilities: %s' % p_clients)
+    #print('Client sampling probabilities: %s' % p_clients)
 
     # Train server model
     train_accs_avg, train_losses_avg = [], []
-    server_weights = model.state_dict() # TODO: necessary? If not, remove
+    v = None
     if not args.quiet: print('\nTraining:')
 
     init_end_time = time.time()
     for round in range(args.rounds):
-        client_weights, ns = [], []
+        updates, ns = [], []
         train_acc_avg, train_loss_avg = 0., 0.
-        model.train()
+        #model.train()
 
         # Sample clients
         m = max(int(args.frac * args.num_users), 1)
@@ -119,25 +107,25 @@ if __name__ == '__main__':
 
         # Train client models
         for i, client_idx in enumerate(client_idxs):
-            w, loss = clients[client_idx].train(model=copy.deepcopy(model), round=round, i=i, m=m)
+            update, loss = clients[client_idx].train(model=copy.deepcopy(model), round=round, i=i, m=m)
 
-            if w is not None:
-                client_weights.append(copy.deepcopy(w))
+            if update is not None:
+                updates.append(copy.deepcopy(update))
                 train_loss_avg += loss * clients[client_idx].n
                 ns.append(clients[client_idx].n)
 
-        if round == 0:
-            v = copy.deepcopy(model.state_dict())
-
-        if len(client_weights) > 0:
+        if len(updates) > 0:
             # Update server model
-            server_weights = average_weights(client_weights, ns)
-            for key in v.keys():
-                v[key] -= server_weights[key]
+            update_avg = average_updates(updates, ns)
+            if v is None:
+                v = copy.deepcopy(update_avg)
             else:
-                v[key] = args.fedavgm_momentum * v[key] + model.state_dict()[key] - server_weights[key]
-            for key in v.keys():
-                model.state_dict()[key] -= args.server_lr * v[key]
+                for key in v.keys():
+                    v[key] = torch.add(update_avg[key], v[key], alpha=args.server_momentum)
+            new_weights = copy.deepcopy(model.state_dict())
+            for key in new_weights.keys():
+                new_weights[key] = torch.sub(new_weights[key], v[key], alpha=args.server_lr)
+            model.load_state_dict(new_weights)
 
             # Compute average client training accuracy and loss
             for client_idx, client in enumerate(clients):
@@ -146,8 +134,9 @@ if __name__ == '__main__':
             train_acc_avg /= len(train_dataset)
             train_loss_avg /= sum(ns)
 
-            print('    Average client training accuracy: {:.2f}%'.format(100*train_acc_avg))
-            print('    Average client training loss: {:.6f}'.format(train_loss_avg))
+            if not args.quiet:
+                print('    Average client training accuracy: {:.2f}%'.format(100*train_acc_avg))
+                print('    Average client training loss: {:.6f}'.format(train_loss_avg))
 
         else:
             train_loss_avg, train_acc_avg = None, None

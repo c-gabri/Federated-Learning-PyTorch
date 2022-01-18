@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.6
+# Python version: 3.8.10
 
 
 import torch
@@ -52,7 +52,7 @@ class Client(object):
         if self.args.optimizer == 'sgd':
             optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, momentum=self.args.momentum)
         elif self.args.optimizer == 'adam':
-            optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr, weight_decay=1e-4)
+            optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr, weight_decay=1e-4) # TODO: make weight_decay command line parameter, also for SGD?
 
         # Set epochs based on system heterogeneity
         if self.args.hetero > 0:
@@ -77,8 +77,9 @@ class Client(object):
             train_loader = self.train_loader
 
         # Initialize FedProx
-        if self.args.fedprox_mu > 0:
-            model_old = copy.deepcopy(model).to(self.device)
+        #if self.args.fedprox_mu > 0:
+        #    model_old = copy.deepcopy(model).to(self.device)
+        model_old = copy.deepcopy(model)
 
         # Train model
         model.train()
@@ -96,12 +97,11 @@ class Client(object):
                 loss = self.criterion(log_probs, labels)
 
                 # Add FedProx proximal term to loss
-                if self.args.fedprox_mu > 0:
-                    if epoch > 0:
-                        w_diff = torch.tensor(0., device=self.device)
-                        for w, w_t in zip(model_old.parameters(), model.parameters()):
-                            w_diff += torch.pow(torch.norm(w - w_t), 2)
-                        loss += self.args.fedprox_mu / 2. * w_diff
+                if self.args.fedprox_mu > 0 and epoch > 0:
+                    w_diff = torch.tensor(0., device=self.device)
+                    for w, w_t in zip(model_old.parameters(), model.parameters()):
+                        w_diff += torch.pow(torch.norm(w - w_t), 2)
+                    loss += self.args.fedprox_mu / 2. * w_diff
 
                 loss.backward()
                 optimizer.step()
@@ -113,7 +113,7 @@ class Client(object):
                         i+1, m,
                         epoch+1, epochs,
                         batch+1, len(train_loader),
-                        (batch+1)*len(examples), len(train_loader.dataset),
+                        batch*train_loader.batch_size+len(examples), len(train_loader.dataset),
                         loss.item()), end='')
                     if batch < len(train_loader)-1: print()
                 batch_loss.append(loss.item())
@@ -128,7 +128,13 @@ class Client(object):
         if not self.args.quiet:
             print(', Round loss: {:.6f}'.format(round_loss))
 
-        return model.state_dict(), round_loss # TODO: client should return model update, not model
+        model_update = copy.deepcopy(model_old.state_dict())
+        for key in model_update.keys():
+            model_update[key] = torch.sub(model_update[key], model.state_dict()[key])
+
+        return model_update, round_loss
+
+        #return model.state_dict(), round_loss # TODO: in theory, client should return model update, not model
 
     def inference(self, model, test=True):
         loader = self.test_loader if test else self.train_loader
@@ -163,7 +169,7 @@ def inference(args, model, loader, device):
         correct += torch.sum(torch.eq(pred_labels, labels)).item()
         total += len(labels)
 
-    accuracy = correct/len(loader.dataset)
-    loss /= len(loader.dataset)
+    accuracy = correct/total
+    loss /= total
 
     return accuracy, loss

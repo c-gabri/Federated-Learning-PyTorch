@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.6
+# Python version: 3.8.10
 
 import copy
 import torch
@@ -84,23 +84,25 @@ def get_datasets_splits(args):
     return train_dataset, test_dataset, train_split, test_split
 
 
-def average_weights(w, n_k):
+def average_updates(w, n_k):
     """
     Returns the average of the weights.
     """
+
     w_avg = copy.deepcopy(w[0])
     for key in w_avg.keys():
-        w_avg[key] *= n_k[0]
+        #w_avg[key] *= n_k[0]
+        w_avg[key] = torch.mul(w_avg[key], n_k[0])
         for i in range(1, len(w)):
-            #w_avg[key] += w[i][key]
-            w_avg[key] += n_k[i]*w[i][key]
-        #w_avg[key] = torch.div(w_avg[key], len(w))
-        w_avg[key] /= sum(n_k)
+            #w_avg[key] += n_k[i]*w[i][key]
+            w_avg[key] = torch.add(w_avg[key], w[i][key], alpha=n_k[i])
+        #w_avg[key] /= sum(n_k)
+        w_avg[key] = torch.div(w_avg[key], sum(n_k))
     return w_avg
 
 
 def exp_details(args, model):
-    model = str(model).replace('\n','\n                             ')
+    model = str(model).replace('\n','\n                           ')
     device = str(torch.cuda.get_device_properties(torch.cuda.current_device())) if args.gpu is not None else 'CPU'
 
     if args.centralized:
@@ -110,7 +112,7 @@ def exp_details(args, model):
             algo = 'FedSGD'
         else:
             algo = 'FedAvg'
-        if args.fedavgm_momentum:
+        if args.server_momentum:
             algo = algo + 'M'
         if args.fedir:
             algo = algo + ' + FedIR'
@@ -138,7 +140,7 @@ def exp_details(args, model):
         print(f'    Clients              : {args.num_users}')
         print(f'    Fraction of clients  : {args.frac}')
         print(f'    Server learning rate : {args.server_lr}')
-        print(f'    Server momentum      : {args.fedavgm_momentum}')
+        print(f'    Server momentum      : {args.server_momentum}')
         print(f'    IID                  : {args.iid}')
         print(f'    Balance              : {args.balance}')
         print(f'    System heterogeneity : {args.hetero}')

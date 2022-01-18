@@ -23,7 +23,7 @@ def args_parser():
                         help='optimizer name')
     args_general.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
-    args_general.add_argument('--momentum', type=float, default=0,
+    args_general.add_argument('--momentum', type=float, default=0.5,
                         help='SGD momentum')
     args_general.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10','mnist'],
                         help='dataset name') # TODO: remove or implement fmnist
@@ -58,7 +58,7 @@ def args_parser():
                         help='system heterogeneity')
     args_fed.add_argument('--fedsgd', action='store_true', default=False,
                         help='use FedSGD algorithm')
-    args_fed.add_argument('--fedavgm_momentum', type=float, default=0,
+    args_fed.add_argument('--server_momentum', type=float, default=0,
                         help='use FedAvgM algorithm with specified server momentum')
     args_fed.add_argument('--fedir', action='store_true', default=False,
                         help='use FedIR algorithm')
@@ -86,7 +86,7 @@ def args_parser():
     args_output = parser.add_argument_group('output arguments')
     args_output.add_argument('--quiet', '-q', action='store_true', default=False,
                         help='less verbose output')
-    args_output.add_argument('--batch_print_interval', type=int, default=1,
+    args_output.add_argument('--batch_print_interval', type=int, default=0,
                         help='print stats every specified number of batches')
     args_output.add_argument('--epoch_print_interval', type=int, default=1,
                         help='print stats every specified number of epochs')
@@ -105,14 +105,17 @@ def args_parser():
         args.fedsgd = True
     if args.centralized:
         args.num_users = 1
+        args.frac = 1
         args.rounds = 1
         args.hetero = 0
+        args.iid = float('inf')
+        args.balance = float('inf')
         args.fedvc_nvc = 0
         args.fedir = False
         args.fedprox_mu = 0
         args.fedsgd = False
-        args.server_lr = 0
-        args.fedavgm_momentum = 0
+        args.server_lr = 1
+        args.server_momentum = 0
     elif (args.num_users == 1 and
           args.rounds == 1 and
           not args.hetero and
@@ -121,7 +124,7 @@ def args_parser():
           not args.fedprox_mu and
           not args.fedsgd and
           not args.server_lr and
-          not args.fedavgm_momentum):
+          not args.server_momentum):
         args.centralized = True
     if args.batch_print_interval == 0: args.batch_print_interval = np.inf
     if args.epoch_print_interval == 0: args.epoch_print_interval = np.inf
