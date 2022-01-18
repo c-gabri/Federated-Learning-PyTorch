@@ -9,7 +9,7 @@ import numpy as np
 
 def args_parser():
     usage = 'python main.py [ARGUMENTS]'
-    parser = argparse.ArgumentParser(add_help=False, usage=usage, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(prog='main.py', add_help=False, usage=usage, formatter_class=lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=30))
 
     # General arguments
     args_general = parser.add_argument_group('general arguments')
@@ -31,8 +31,6 @@ def args_parser():
                         help='GPU ID')
     args_general.add_argument('--model', type=str, default='lenet5', choices=['lenet5','resnet18','cnn','mlp'],
                         help='model name') # TODO: fix or remove resnet18
-    args_general.add_argument('--num_classes', type=int, default=10,
-                        help='number of classes') # TODO: remove (get it from dataset)
     #args_general.add_argument('--stopping_rounds', type=int, default=10,
     #                    help='rounds of early stopping') # TODO: remove or implement
     #args_general.add_argument('--seed', type=int, default=1,

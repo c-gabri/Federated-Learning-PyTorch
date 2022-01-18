@@ -22,68 +22,60 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 ```python main.py [ARGUMENTS]```
 
 ### General arguments:
-* ```--centralized```:         use centralized training (default: ```False```)
-* ```--epochs EPOCHS, -E EPOCHS```:
-                        number of epochs (default: ```10```)
+* ```--centralized```:               use centralized training (default: ```False```)
+* ```--epochs EPOCHS, -E EPOCHS```:  number of epochs (default: ```10```)
 * ```--batch_size BATCH_SIZE, -B BATCH_SIZE```:
-                        batch size (default: ```10```)
-* ```--optimizer {sgd,adam}```:
-                        optimizer name (default: ```sgd```)
-* ```--lr LR```:               learning rate (default: ```0.01```)
-* ```--momentum MOMENTUM```:   SGD momentum (default: ```0.5```)
-* ```--dataset {cifar10,mnist}```:
-                        dataset name (default: ```cifar10```)
-* ```--gpu GPU```:             GPU ID (default: ```0```)
+                              batch size (default: ```10```)
+* ```--optimizer {sgd,adam}```:      optimizer name (default: ```sgd```)
+* ```--lr LR```:                     learning rate (default: ```0.01```)
+* ```--momentum MOMENTUM```:         SGD momentum (default: ```0.5```)
+* ```--dataset {cifar10,mnist}```:   dataset name (default: ```cifar10```)
+* ```--gpu GPU```:                   GPU ID (default: ```0```)
 * ```--model {lenet5,resnet18,cnn,mlp}```:
-                        model name (default: ```lenet5```)
-* ```--num_classes NUM_CLASSES```:
-                        number of classes (default: ```10```)
-* ```--help, -h```:            show this help message and exit (default: ```False```)
+                              model name (default: ```lenet5```)
+* ```--help, -h```:                  show this help message and exit (default: ```False```)
 
 ### Federated arguments:
-* ```--rounds ROUNDS, -T ROUNDS```:
-                        communication rounds (default: ```10```)
+* ```--rounds ROUNDS, -T ROUNDS```:  communication rounds (default: ```10```)
 * ```--num_users NUM_USERS, -K NUM_USERS```:
-                        number of clients (default: ```100```)
-* ```--frac FRAC, -C FRAC```:  fraction of clients (default: ```0.1```)
-* ```--server_lr SERVER_LR```:
-                        server learning rate (default: ```1```)
-* ```--iid IID```:             Identicalness of class distributions (default: ```inf```)
-* ```--balance BALANCE```:     Client balance (default: ```inf```)
-* ```--hetero HETERO```:       system heterogeneity (default: ```0```)
-* ```--fedsgd```:              use FedSGD algorithm (default: ```False```)
+                              number of clients (default: ```100```)
+* ```--frac FRAC, -C FRAC```:        fraction of clients (default: ```0.1```)
+* ```--server_lr SERVER_LR```:       server learning rate (default: ```1```)
+* ```--iid IID```:                   Identicalness of class distributions (default:
+                              inf)
+* ```--balance BALANCE```:           Client balance (default: ```inf```)
+* ```--hetero HETERO```:             system heterogeneity (default: ```0```)
+* ```--fedsgd```:                    use FedSGD algorithm (default: ```False```)
 * ```--server_momentum SERVER_MOMENTUM```:
-                        use FedAvgM algorithm with specified server momentum
-                        (default: ```0```)
-* ```--fedir```:               use FedIR algorithm (default: ```False```)
-* ```--fedvc_nvc FEDVC_NVC```:
-                        use FedVC algorithm with specified client size
-                        (default: ```0```)
-* ```--fedprox_mu FEDPROX_MU```:
-                        use FedProx algorithm with specified mu (default: ```0```)
+                              use FedAvgM algorithm with specified server
+                              momentum (default: ```0```)
+* ```--fedir```:                     use FedIR algorithm (default: ```False```)
+* ```--fedvc_nvc FEDVC_NVC```:       use FedVC algorithm with specified client size
+                              (default: ```0```)
+* ```--fedprox_mu FEDPROX_MU```:     use FedProx algorithm with specified mu
+                              (default: ```0```)
 
 ### Model arguments:
-* ```--kernel_num KERNEL_NUM```:
-                        number of each kind of kernel (default: ```9```)
+* ```--kernel_num KERNEL_NUM```:     number of each kind of kernel (default: ```9```)
 * ```--kernel_sizes KERNEL_SIZES```:
-                        comma-separated kernel size to use for convolution
-                        (default: ```3,4,5```)
+                              comma-separated kernel size to use for
+                              convolution (default: ```3,4,5```)
 * ```--num_channels NUM_CHANNELS```:
-                        number of channels of imgs (default: ```1```)
-* ```--norm NORM```:           batch_norm, layer_norm, or None (default: ```batch_norm```)
-* ```--num_filters NUM_FILTERS```:
-                        number of filters for conv nets -- 32 for mini-
-                        imagenet, 64 for omiglot. (default: ```32```)
-* ```--max_pool MAX_POOL```:   Whether use max pooling rather than strided
-                        convolutions (default: ```True```)
+                              number of channels of imgs (default: ```1```)
+* ```--norm NORM```:                 batch_norm, layer_norm, or None (default:
+                              batch_norm)
+* ```--num_filters NUM_FILTERS```:   number of filters for conv nets -- 32 for mini-
+                              imagenet, 64 for omiglot. (default: ```32```)
+* ```--max_pool MAX_POOL```:         Whether use max pooling rather than strided
+                              convolutions (default: ```True```)
 
 ### Output arguments:
-* ```--quiet, -q```:           less verbose output (default: ```False```)
+* ```--quiet, -q```:                 less verbose output (default: ```False```)
 * ```--batch_print_interval BATCH_PRINT_INTERVAL```:
-                        print stats every specified number of batches
-                        (default: ```0```)
+                              print stats every specified number of batches
+                              (default: ```0```)
 * ```--epoch_print_interval EPOCH_PRINT_INTERVAL```:
-                        print stats every specified number of epochs (default:
-                        1)
+                              print stats every specified number of epochs
+                              (default: ```1```)
 
 ## Experiments

@@ -49,7 +49,7 @@ if __name__ == '__main__':
         len_in = 1
         for x in img_size:
             len_in *= x
-            model = MLP(dim_in=len_in, dim_hidden=64, dim_out=args.num_classes)
+            model = MLP(dim_in=len_in, dim_hidden=64, dim_out=len(train_dataset.classes))
     elif args.model == 'lenet5':
         # LeNet5
         model = LeNet5()
