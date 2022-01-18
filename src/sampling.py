@@ -46,13 +46,11 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
         #            N_class_client[k,c] += np.sign(diff[c])
         #            diff[c] -= np.sign(diff[c])
 
-        num_clients_plot = min(30,K)
-        y = np.arange(num_clients_plot)
-        left = np.repeat(0,num_clients_plot)
-        ks = np.random.choice(np.arange(K), num_clients_plot, replace=False)
+        y = np.arange(K)
+        left = np.zeros(K)
         for c in range(C):
-            plt.barh(y, N_class_client[ks,c], left=left, height=1)
-            left += N_class_client[ks,c]
+            plt.barh(y, N_class_client[:,c], left=left, height=1)
+            left += N_class_client[:,c]
         plt.xlim((0,max(left)))
         plt.xlabel('Class distribution')
         plt.ylabel('Client')
@@ -70,12 +68,11 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
         #print(N_class_client.sum(1))
 
         for c in range(C):
-            idxs_class = set((np.array(dataset.targets) == c).nonzero()[0])
+            idxs_class = (np.array(dataset.targets) == c).nonzero()[0]
             for k in range(K):
-                if c == 0: splits[i][k] = set()
-                idxs_class_client = set(np.random.choice(list(idxs_class), N_class_client[k,c], replace=True))
-                splits[i][k] = splits[i][k].union(idxs_class_client)
-                #idxs_class -= idxs_class_client
+                if c == 0: splits[i][k] = []
+                idxs_class_client = np.random.choice(list(idxs_class), N_class_client[k,c], replace=True)
+                splits[i][k] += list(idxs_class_client)
 
         for k in range(K): splits[i][k] = list(splits[i][k])
 

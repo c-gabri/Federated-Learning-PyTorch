@@ -104,7 +104,7 @@ if __name__ == '__main__':
     # Train server model
     train_accs_avg, train_losses_avg = [], []
     server_weights = model.state_dict() # TODO: necessary? If not, remove
-    print('\nTraining:')
+    if not args.quiet: print('\nTraining:')
 
     init_end_time = time.time()
     for round in range(args.rounds):
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         # Sample clients
         m = max(int(args.frac * args.num_users), 1)
         client_idxs = np.random.choice(range(args.num_users), m, replace=False, p=p_clients)
-        print('    Selected clients: %s' % client_idxs)
+        if not args.quiet: print('    Selected clients: %s' % client_idxs)
 
         # Train client models
         for i, client_idx in enumerate(client_idxs):
@@ -126,30 +126,33 @@ if __name__ == '__main__':
                 train_loss_avg += loss * clients[client_idx].n
                 ns.append(clients[client_idx].n)
 
-        # Update server model
+        if round == 0:
+            v = copy.deepcopy(model.state_dict())
+
         if len(client_weights) > 0:
+            # Update server model
             server_weights = average_weights(client_weights, ns)
-            if round == 0:
-                v = copy.deepcopy(model.state_dict())
-                for key in v.keys():
-                    v[key] -= server_weights[key]
+            for key in v.keys():
+                v[key] -= server_weights[key]
             else:
-                for key in v.keys():
-                    v[key] = args.fedavgm_momentum * v[key] + model.state_dict()[key] - server_weights[key]
+                v[key] = args.fedavgm_momentum * v[key] + model.state_dict()[key] - server_weights[key]
             for key in v.keys():
                 model.state_dict()[key] -= args.server_lr * v[key]
 
+            # Compute average client training accuracy and loss
+            for client_idx, client in enumerate(clients):
+                acc, _ = client.inference(model, test=False)
+                if acc is not None: train_acc_avg += acc * len(train_split[client_idx])
+            train_acc_avg /= len(train_dataset)
             train_loss_avg /= sum(ns)
-        else:
-            train_loss_avg = None
-        train_losses_avg.append(train_loss_avg)
 
-        for client_idx, client in enumerate(clients):
-            acc, _ = client.inference(model, test=False)
-            if acc is not None: train_acc_avg += acc * len(train_split[client_idx])
-        train_acc_avg /= len(train_dataset)
-        print('    Average client training accuracy: {:.2f}%'.format(100*train_acc_avg))
-        print('    Average client training loss: {:.6f}\n'.format(train_loss_avg))
+            print('    Average client training accuracy: {:.2f}%'.format(100*train_acc_avg))
+            print('    Average client training loss: {:.6f}'.format(train_loss_avg))
+
+        else:
+            train_loss_avg, train_acc_avg = None, None
+
+        train_losses_avg.append(train_loss_avg)
         train_accs_avg.append(train_acc_avg)
 
     train_end_time = time.time()
@@ -170,7 +173,7 @@ if __name__ == '__main__':
     test_end_time = time.time()
 
 
-    print('Results:')
+    print('\nResults:')
     print("    Test accuracy: {:.2f}%".format(100*test_acc))
     print("    Test loss: {:.6f}".format(test_loss))
     print("    Average client test accuracy: {:.2f}%".format(100*test_acc_avg))
