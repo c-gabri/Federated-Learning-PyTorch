@@ -51,9 +51,9 @@ def args_parser():
                         help='fraction of clients')
     args_fed.add_argument('--server_lr', type=float, default=1,
                         help='server learning rate')
-    args_fed.add_argument('--iid', type=float, default=sys.maxsize,
+    args_fed.add_argument('--iid', type=float, default='inf',
                         help='Identicalness of class distributions')
-    args_fed.add_argument('--balance', type=float, default=sys.maxsize,
+    args_fed.add_argument('--balance', type=float, default='inf',
                         help='Client balance')
     args_fed.add_argument('--hetero', type=float, default=0,
                         help='system heterogeneity')
