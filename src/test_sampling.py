@@ -41,14 +41,14 @@ def emd_distance(distributions):
 
 # takes as parameters: dataframe, number of users, number of items for each client (if not set it depends on db images/ num of users), 
 # unbalance factor from 0 to 1 where 0 is a uniform distribution and 1 is distributed over a single class.
-def distribution_iid(dataset, num_users, unbalance_factor, fixed_items=0):
+def distribution_iid(dataset, num_clients, unbalance_factor, fixed_items=0):
     available_classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     probabilities = np.zeros(10)
     sum_prob = 0
     max_prob = 100
     # print(probabilities)
-    dict_users, all_idxs = {i: np.array([]) for i in range(num_users)}, [i for i in range(len(dataset))]
+    dict_users, all_idxs = {i: np.array([]) for i in range(num_clients)}, [i for i in range(len(dataset))]
     idxs = np.arange(len(dataset))
     labels = np.array(dataset.targets)
     idxs_labels = np.vstack((idxs, labels))
@@ -58,14 +58,14 @@ def distribution_iid(dataset, num_users, unbalance_factor, fixed_items=0):
     # print(class_idxs)
     idxs = idxs_labels[0, :]
     if fixed_items == 0:
-        num_items = int(len(dataset)/num_users)
+        num_items = int(len(dataset)/num_clients)
     else:
         num_items = fixed_items
     # num_items = 10
-    # num_users = 1
+    # num_clients = 1
     distributions = {}
     user_probabilities = {}
-    for user in range(num_users):
+    for user in range(num_clients):
         random.shuffle(available_classes)
         probabilities[available_classes[0]] = max_prob
         curr_prob = max_prob
@@ -109,7 +109,7 @@ def drawHist(data,names):
 
 
 data_dir = '../data/cifar10/'
-num_users = 50
+num_clients = 50
 unbalance_factor = 0
 apply_transform = transforms.Compose(
     [transforms.ToTensor(),
@@ -121,11 +121,11 @@ train_dataset = datasets.CIFAR10(data_dir, train=True, download=True,
 test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
                                 transform=apply_transform)
 
-# train_split = cifar10_noniid_unequal(train_dataset, num_users)
-# train_split = cifar10_noniid(train_dataset, num_users)
-# train_split = cifar10_iid(train_dataset, num_users)
-# train_split = cifar10_iid_unequal(train_dataset, num_users)
-train_split = distribution_iid(train_dataset, num_users,unbalance_factor)
+# train_split = cifar10_noniid_unequal(train_dataset, num_clients)
+# train_split = cifar10_noniid(train_dataset, num_clients)
+# train_split = cifar10_iid(train_dataset, num_clients)
+# train_split = cifar10_iid_unequal(train_dataset, num_clients)
+train_split = distribution_iid(train_dataset, num_clients,unbalance_factor)
 
 labels = np.array(train_dataset.targets)
 

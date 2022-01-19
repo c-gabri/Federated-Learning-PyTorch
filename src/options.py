@@ -6,72 +6,65 @@
 
 import argparse
 import numpy as np
-import pandas as pd
-
-pd.options.display.max_colwidth=1000
-pd.options.display.max_columns=1000
 
 
 def args_parser():
     usage = 'python main.py [ARGUMENTS]'
     parser = argparse.ArgumentParser(prog='main.py', add_help=False, usage=usage, formatter_class=lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=1000, width=1000))
 
-    # General arguments
-    args_general = parser.add_argument_group('general arguments')
-    args_general.add_argument('--centralized', action='store_true', default=False,
-                        help='use centralized training')
-    args_general.add_argument('--epochs', '-E', type=int, default=10,
-                        help='number of epochs')
-    args_general.add_argument('--batch_size', '-B', type=int, default=10,
-                        help='batch size')
-    args_general.add_argument('--optimizer', type=str, default='sgd', choices=['sgd','adam'],
-                        help='optimizer name')
-    args_general.add_argument('--lr', type=float, default=0.01,
-                        help='learning rate')
-    args_general.add_argument('--momentum', type=float, default=0.5,
-                        help='SGD momentum')
-    args_general.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10','mnist'],
+    # Federated setting
+    args_setting = parser.add_argument_group('federated setting arguments')
+    args_setting.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10','mnist'],
                         help='dataset name') # TODO: remove or implement fmnist
-    args_general.add_argument('--gpu', type=int, default=0,
-                        help='GPU ID')
-    args_general.add_argument('--model', type=str, default='lenet5', choices=['lenet5','resnet18','cnn','mlp'],
-                        help='model name') # TODO: fix or remove resnet18
-    #args_general.add_argument('--stopping_rounds', type=int, default=10,
-    #                    help='rounds of early stopping') # TODO: remove or implement
-    #args_general.add_argument('--seed', type=int, default=1,
-    #                    help='random seed') # TODO: implement
-    args_general.add_argument('--help', '-h', action='store_true', default=False,
-                        help='show this help message and exit')
-
-    # Federated arguments
-    args_fed = parser.add_argument_group('federated arguments')
-    args_fed.add_argument('--rounds', '-T', type=int, default=10,
-                        help='communication rounds')
-    args_fed.add_argument('--num_users', '-K', type=int, default=100,
-                        help='number of clients')
-    args_fed.add_argument('--frac', '-C', type=float, default=0.1,
-                        help='fraction of clients')
-    args_fed.add_argument('--server_lr', type=float, default=1,
-                        help='server learning rate')
-    args_fed.add_argument('--iid', type=float, default='inf',
+    args_setting.add_argument('--iid', type=float, default='inf',
                         help='Identicalness of class distributions')
-    args_fed.add_argument('--balance', type=float, default='inf',
+    args_setting.add_argument('--balance', type=float, default='inf',
                         help='Client balance')
-    args_fed.add_argument('--hetero', type=float, default=0,
+    args_setting.add_argument('--hetero', type=float, default=0,
                         help='system heterogeneity')
-    args_fed.add_argument('--fedsgd', action='store_true', default=False,
-                        help='use FedSGD algorithm')
-    args_fed.add_argument('--server_momentum', type=float, default=0,
+
+    # Algorithm family
+    args_algo_fam = parser.add_argument_group('algorithm family arguments')
+    args_algo_fam.add_argument('--centralized', action='store_true', default=False,
+                        help='use centralized training')
+    args_algo_fam.add_argument('--server_momentum', type=float, default=0,
                         help='use FedAvgM algorithm with specified server momentum')
-    args_fed.add_argument('--fedir', action='store_true', default=False,
+    args_algo_fam.add_argument('--fedir', action='store_true', default=False,
                         help='use FedIR algorithm')
-    args_fed.add_argument('--fedvc_nvc', type=int, default=0,
+    args_algo_fam.add_argument('--fedvc_nvc', type=int, default=0,
                         help='use FedVC algorithm with specified client size')
-    args_fed.add_argument('--fedprox_mu', type=float, default=0,
+    args_algo_fam.add_argument('--fedprox_mu', type=float, default=0,
                         help='use FedProx algorithm with specified mu')
+    args_algo_fam.add_argument('--fedsgd', action='store_true', default=False,
+                        help='use FedSGD algorithm')
+
+    # Algorithm
+    args_algo = parser.add_argument_group('algorithm arguments')
+    args_algo.add_argument('--rounds', type=int, default=10,
+                        help='communication rounds')
+    args_algo.add_argument('--num_clients', '-K', type=int, default=100,
+                        help='number of clients')
+    args_algo.add_argument('--frac_clients', '-C', type=float, default=0.1,
+                        help='fraction of clients')
+    args_algo.add_argument('--epochs', '-E', type=int, default=10,
+                        help='number of epochs')
+    args_algo.add_argument('--batch_size', '-B', type=int, default=10,
+                        help='batch size')
+    args_algo.add_argument('--lr', type=float, default=0.01,
+                        help='learning rate')
+    args_algo.add_argument('--momentum', type=float, default=0.5,
+                        help='SGD momentum')
+    args_algo.add_argument('--server_lr', type=float, default=1,
+                        help='server learning rate')
+    args_algo.add_argument('--optimizer', type=str, default='sgd', choices=['sgd','adam'],
+                        help='optimizer name')
+    #args_algo.add_argument('--stopping_rounds', type=int, default=10,
+    #                    help='rounds of early stopping') # TODO: remove or implement
 
     # Model arguments
     args_model = parser.add_argument_group('model arguments')
+    args_model.add_argument('--model', type=str, default='lenet5', choices=['lenet5','resnet18','cnn','mlp'],
+                        help='model name') # TODO: fix or remove resnet18
     args_model.add_argument('--kernel_num', type=int, default=9,
                         help='number of each kind of kernel')
     args_model.add_argument('--kernel_sizes', type=str, default='3,4,5',
@@ -94,23 +87,27 @@ def args_parser():
     args_output.add_argument('--epoch_print_interval', type=int, default=1,
                         help='print stats every specified number of epochs')
 
+    # Other arguments
+    args_other = parser.add_argument_group('other arguments')
+    args_other.add_argument('--gpu', type=int, default=0,
+                        help='GPU ID')
+    args_other.add_argument('--help', '-h', action='store_true', default=False,
+                        help='show this help message and exit')
+    #args_other.add_argument('--seed', type=int, default=1,
+    #                    help='random seed') # TODO: implement
+
     args = parser.parse_args()
     if args.help:
-        help = parser.format_help()
-        print(help)
-        #parser.print_help()
+        parser.print_help()
         exit()
-
     if args.fedvc_nvc > 0:
         args.epochs = 1
     if args.fedsgd:
         args.epochs = 1
         args.batch_size = 0
-    elif args.epochs == 1 and args.batch_size == 0:
-        args.fedsgd = True
     if args.centralized:
-        args.num_users = 1
-        args.frac = 1
+        args.num_clients = 1
+        args.frac_clients = 1
         args.rounds = 1
         args.hetero = 0
         args.iid = float('inf')
@@ -121,16 +118,6 @@ def args_parser():
         args.fedsgd = False
         args.server_lr = 1
         args.server_momentum = 0
-    elif (args.num_users == 1 and
-          args.rounds == 1 and
-          not args.hetero and
-          not args.fedvc_nvc and
-          not args.fedir and
-          not args.fedprox_mu and
-          not args.fedsgd and
-          not args.server_lr and
-          not args.server_momentum):
-        args.centralized = True
     if args.batch_print_interval == 0: args.batch_print_interval = np.inf
     if args.epoch_print_interval == 0: args.epoch_print_interval = np.inf
 

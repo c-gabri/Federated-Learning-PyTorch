@@ -40,15 +40,15 @@ def get_datasets_splits(args):
         ## sample training data amongst users
         #if args.iid:
         #    # Sample IID user data from CIFAR-10
-        #    train_split = cifar10_iid(train_dataset, args.num_users)
+        #    train_split = cifar10_iid(train_dataset, args.num_clients)
         #else:
         #    # Sample Non-IID user data from CIFAR-10
         #    if args.unequal:
         #        # Choose uneuqal splits for every user
-        #        user_groups = cifar10_noniid_unequal(train_dataset, args.num_users)
+        #        user_groups = cifar10_noniid_unequal(train_dataset, args.num_clients)
         #    else:
         #        # Choose equal splits for every user
-        #        train_split = cifar10_noniid(train_dataset, args.num_users)
+        #        train_split = cifar10_noniid(train_dataset, args.num_clients)
 
     elif args.dataset == 'mnist' or 'fmnist':
         if args.dataset == 'mnist':
@@ -69,17 +69,17 @@ def get_datasets_splits(args):
         ## sample training data amongst users
         #if args.iid:
         #    # Sample IID user data from Mnist
-        #    train_split = mnist_iid(train_dataset, args.num_users)
+        #    train_split = mnist_iid(train_dataset, args.num_clients)
         #else:
         #    # Sample Non-IID user data from Mnist
         #    if args.unequal:
         #        # Chose uneuqal splits for every user
-        #        train_split = mnist_noniid_unequal(train_dataset, args.num_users)
+        #        train_split = mnist_noniid_unequal(train_dataset, args.num_clients)
         #    else:
         #        # Chose euqal splits for every user
-        #        train_split = mnist_noniid(train_dataset, args.num_users)
+        #        train_split = mnist_noniid(train_dataset, args.num_clients)
 
-    train_split, test_split = get_splits(train_dataset, test_dataset, args.num_users, args.iid, args.balance)
+    train_split, test_split = get_splits(train_dataset, test_dataset, args.num_clients, args.iid, args.balance)
 
     return train_dataset, test_dataset, train_split, test_split
 
@@ -137,8 +137,8 @@ def exp_details(args, model):
     if not args.centralized:
         print('    Federated parameters:')
         print(f'    Communication rounds : {args.rounds}')
-        print(f'    Clients              : {args.num_users}')
-        print(f'    Fraction of clients  : {args.frac}')
+        print(f'    Clients              : {args.num_clients}')
+        print(f'    Fraction of clients  : {args.frac_clients}')
         print(f'    Server learning rate : {args.server_lr}')
         print(f'    Server momentum      : {args.server_momentum}')
         print(f'    IID                  : {args.iid}')

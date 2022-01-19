@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     # Create clients
     clients = []
-    for client_idx in range(args.num_users):
+    for client_idx in range(args.num_clients):
         clients.append(Client(args=args, train_dataset=train_dataset, train_idxs=train_split[client_idx], test_dataset=test_dataset, test_idxs=test_split[client_idx], logger=logger, device=device))
 
     # Set client sampling probabilities. TODO: allow non-uniform w/o FedVC?
@@ -101,8 +101,8 @@ if __name__ == '__main__':
         #model.train()
 
         # Sample clients
-        m = max(int(args.frac * args.num_users), 1)
-        client_idxs = np.random.choice(range(args.num_users), m, replace=False, p=p_clients)
+        m = max(int(args.frac_clients * args.num_clients), 1)
+        client_idxs = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)
         if not args.quiet: print('    Selected clients: %s' % client_idxs)
 
         # Train client models
@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     # Test on client test sets
     test_acc_avg, test_loss_avg = 0., 0.
-    for client_idx in range(args.num_users):
+    for client_idx in range(args.num_clients):
         acc, loss = clients[client_idx].inference(model, test=True)
         if acc is not None:
             test_acc_avg += len(test_split[client_idx]) * acc
@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     # Saving the objects train_losses_avg and train_accuracy:
     file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
-        format(args.dataset, args.model, args.rounds, args.frac, args.iid,
+        format(args.dataset, args.model, args.rounds, args.frac_clients, args.iid,
                args.rounds, args.batch_size)
 
     with open(file_name, 'wb') as f:
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     #plt.ylabel('Training loss')
     #plt.xlabel('Communication Rounds')
     #plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_loss.png'.
-    #            format(args.dataset, args.model, args.rounds, args.frac,
+    #            format(args.dataset, args.model, args.rounds, args.frac_clients,
     #                   args.iid, args.rounds, args.batch_size))
 
     # Plot Average Accuracy vs Communication rounds
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     #plt.ylabel('Average Accuracy')
     #plt.xlabel('Communication Rounds')
     #plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
-    #            format(args.dataset, args.model, args.rounds, args.frac,
+    #            format(args.dataset, args.model, args.rounds, args.frac_clients,
     #                   args.iid, args.rounds, args.batch_size))
 
     print('    Total time: {0:0.3f}s'.format(time.time()-start_time))
