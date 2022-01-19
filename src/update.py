@@ -8,7 +8,15 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset, Subset
 import numpy as np
 import copy
+import matplotlib.pyplot as plt
 
+def update_plot(p, new_xdata, new_ydata):
+        p.set_xdata(np.append(p.get_xdata(), new_xdata))
+        p.set_ydata(np.append(p.get_ydata(), new_ydata))
+        p.axes.relim()
+        p.axes.autoscale_view()
+        plt.draw()
+        plt.pause(0.001)
 
 class Client(object):
     def __init__(self, args, train_dataset, train_idxs, test_dataset, test_idxs, logger, device):
@@ -48,11 +56,12 @@ class Client(object):
             if not self.args.quiet: print('    Client %d/%d has no data!' % (i+1, m))
             return None, None
 
-        # Set optimizer
+        # Set optimizer and scheduler
         if self.args.optimizer == 'sgd':
             optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, momentum=self.args.momentum)
         elif self.args.optimizer == 'adam':
             optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr, weight_decay=1e-4) # TODO: make weight_decay command line parameter, also for SGD?
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
         # Set epochs based on system heterogeneity
         if self.args.hetero > 0:
@@ -83,9 +92,35 @@ class Client(object):
 
         # Train model
         model.train()
-        epoch_loss = []
+        epoch_loss, epoch_test_accs = [], []
         batch_print_interval = self.args.batch_print_interval
         epoch_print_interval = self.args.epoch_print_interval
+
+        if self.args.centralized:
+            plt.figure()
+            p1, = plt.plot([], [])
+            plt.xlabel('Epoch')
+            plt.ylabel('Training loss')
+            plt.grid()
+
+            plt.figure()
+            p2, = plt.plot([], [], label='Training')
+            p3, = plt.plot([], [], label='Test')
+            plt.legend()
+            plt.xlabel('Epoch')
+            plt.ylabel('Accuracy')
+            plt.grid()
+
+            plt.figure()
+            plot_lrs = []
+            num_param_groups = len(optimizer.state_dict()['param_groups'])
+            for i in range(num_param_groups):
+                    plot, = plt.plot([], [], label='Parameter group %d' % (i+1))
+                    plot_lrs.append(plot)
+            plt.xlabel('Epoch')
+            plt.ylabel('Learning rate')
+            plt.legend()
+            plt.grid()
 
         for epoch in range(epochs):
             batch_loss = []
@@ -124,6 +159,21 @@ class Client(object):
                 print(', Epoch loss: {:.6f}'.format(epoch_loss[-1]), end='')
                 if epoch < epochs-1: print()
 
+            if self.args.centralized:
+                epoch_train_acc, _ = self.inference(model, test=False)
+                epoch_test_acc, _ = self.inference(model, test=True)
+                epoch_test_accs.append(epoch_test_acc)
+                update_plot(p1, epoch+1, epoch_loss[-1])
+                update_plot(p2, epoch+1, epoch_train_acc)
+                update_plot(p3, epoch+1, epoch_test_acc)
+                lr = [optimizer.state_dict()['param_groups'][i]['lr'] for i in range(num_param_groups)]
+                for i in range(num_param_groups):
+                        update_plot(plot_lrs[i], epoch+1, lr[i])
+
+            scheduler.step()
+
+        if self.args.centralized: plt.show()
+
         round_loss = sum(epoch_loss)/len(epoch_loss)
         if not self.args.quiet:
             print(', Round loss: {:.6f}'.format(round_loss))
@@ -133,8 +183,6 @@ class Client(object):
             model_update[key] = torch.sub(model_update[key], model.state_dict()[key])
 
         return model_update, round_loss
-
-        #return model.state_dict(), round_loss # TODO: in theory, client should return model update, not model
 
     def inference(self, model, test=True):
         loader = self.test_loader if test else self.train_loader

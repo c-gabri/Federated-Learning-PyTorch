@@ -48,11 +48,11 @@ def args_parser():
                         help='fraction of clients')
     args_algo.add_argument('--epochs', '-E', type=int, default=10,
                         help='number of epochs')
-    args_algo.add_argument('--batch_size', '-B', type=int, default=10,
+    args_algo.add_argument('--batch_size', '-B', type=int, default=50,
                         help='batch size')
     args_algo.add_argument('--lr', type=float, default=0.01,
                         help='learning rate')
-    args_algo.add_argument('--momentum', type=float, default=0.5,
+    args_algo.add_argument('--momentum', type=float, default=0,
                         help='SGD momentum')
     args_algo.add_argument('--server_lr', type=float, default=1,
                         help='server learning rate')
@@ -63,7 +63,7 @@ def args_parser():
 
     # Model arguments
     args_model = parser.add_argument_group('model arguments')
-    args_model.add_argument('--model', type=str, default='lenet5', choices=['lenet5','resnet18','cnn','mlp'],
+    args_model.add_argument('--model', type=str, default='lenet5', choices=['lenet5','cnn','mlp'],
                         help='model name') # TODO: fix or remove resnet18
     args_model.add_argument('--kernel_num', type=int, default=9,
                         help='number of each kind of kernel')
