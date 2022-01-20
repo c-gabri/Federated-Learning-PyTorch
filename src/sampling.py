@@ -7,7 +7,17 @@ import numpy as np
 from torchvision import datasets, transforms
 import random
 import matplotlib.pyplot as plt
+from scipy import stats
 
+def earthmover_distance(N_class_client):
+    N_class_client = N_class_client[~np.all(N_class_client == 0, axis=1)]
+    N_client = N_class_client.sum(1, keepdims=True)
+    N = N_class_client.sum()
+    q = N_class_client / N_client
+    p = (N_class_client).sum(0, keepdims=True) / N
+    emd = (np.abs(q - p).sum(1, keepdims=True) * N_client).sum() / N
+
+    return emd
 
 def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
     C = len(train_dataset.classes)
@@ -32,6 +42,7 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
         q_client = np.random.dirichlet(alpha_client*p_client).reshape((K,1))
 
     splits = ({}, {})
+    emds = []
     for i, dataset in enumerate((train_dataset, test_dataset)):
         N = len(dataset)
         N_class = np.array([(np.array(dataset.targets) == c).sum() for c in range(C)]).reshape((1,C))
@@ -45,6 +56,8 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
         #        if N_class_client[k,c] + np.sign(diff[c]) >= 0:
         #            N_class_client[k,c] += np.sign(diff[c])
         #            diff[c] -= np.sign(diff[c])
+
+        emds.append(earthmover_distance(N_class_client))
 
         y = np.arange(K)
         left = np.zeros(K)
@@ -76,7 +89,7 @@ def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
 
         for k in range(K): splits[i][k] = list(splits[i][k])
 
-    return splits
+    return splits, emds
 
 def mnist_iid(dataset, num_clients):
     """

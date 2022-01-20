@@ -79,9 +79,9 @@ def get_datasets_splits(args):
         #        # Chose euqal splits for every user
         #        train_split = mnist_noniid(train_dataset, args.num_clients)
 
-    train_split, test_split = get_splits(train_dataset, test_dataset, args.num_clients, args.iid, args.balance)
+    splits, emds = get_splits(train_dataset, test_dataset, args.num_clients, args.iid, args.balance)
 
-    return train_dataset, test_dataset, train_split, test_split
+    return train_dataset, test_dataset, splits[0], splits[1], emds
 
 
 def average_updates(w, n_k):
@@ -101,7 +101,7 @@ def average_updates(w, n_k):
     return w_avg
 
 
-def exp_details(args, model):
+def exp_details(args, model, emds):
     model = str(model).replace('\n','\n                           ')
     device = str(torch.cuda.get_device_properties(torch.cuda.current_device())) if args.gpu is not None else 'CPU'
 
@@ -141,7 +141,7 @@ def exp_details(args, model):
         print(f'    Fraction of clients  : {args.frac_clients}')
         print(f'    Server learning rate : {args.server_lr}')
         print(f'    Server momentum      : {args.server_momentum}')
-        print(f'    IID                  : {args.iid}')
+        print(f'    IID/EMD              : {args.iid}/{emds[0]}')
         print(f'    Balance              : {args.balance}')
         print(f'    System heterogeneity : {args.hetero}')
         #print(f'    FedIR                : {args.fedir}')

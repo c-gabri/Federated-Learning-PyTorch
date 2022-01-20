@@ -130,7 +130,7 @@ train_split = distribution_iid(train_dataset, num_clients,unbalance_factor)
 labels = np.array(train_dataset.targets)
 
 print("Unbalance Factor: " + str(unbalance_factor))
-distributios = {}
+distributions = {}
 for user in train_split:
     # print("User: " + str(user))
     distribution = [0,0,0,0,0,0,0,0,0,0]

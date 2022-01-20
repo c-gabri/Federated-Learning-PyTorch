@@ -32,7 +32,25 @@ if __name__ == '__main__':
     device = 'cuda:%d' % args.gpu if args.gpu is not None else 'cpu'
 
     # Load datasets and splits
-    train_dataset, test_dataset, train_split, test_split = get_datasets_splits(args)
+    train_dataset, test_dataset, train_split, test_split, emds = get_datasets_splits(args)
+
+    '''
+    labels = np.array(train_dataset.targets)
+    distributions = {}
+    for user in train_split:
+        # print("User: " + str(user))
+        distribution = [0,0,0,0,0,0,0,0,0,0]
+        for idx in train_split[user]:
+            distribution[labels[int(idx)]] += 1
+            # print(labels[int(idx)], end =',')
+            # print(idx)
+        # print(distribution)
+        distributions[user] = distribution
+        # print(distributions[user])
+        # print(user_probabilities[user])
+    from test_sampling import emd_distance
+    non_identicalness = emd_distance(distributions)
+    '''
 
     # Load model
     if args.model == 'cnn':
@@ -72,7 +90,7 @@ if __name__ == '__main__':
     #         param.requires_grad = True
 
     # Print experiment details
-    exp_details(args, model)
+    exp_details(args, model, emds)
 
     # Create clients
     clients = []
