@@ -2,11 +2,152 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.8.10
 
+
 from torch import nn
 import torch
 import torch.nn.functional as F
+from utils import conv_out_size
 
+class mlp_mnist(nn.Module):
+    def __init__(self, dataset):
+        fc_units = 200
 
+        super(mlp_mnist, self).__init__()
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(dataset[0][0].numel(), fc_units)
+        self.fc2 = nn.Linear(fc_units, fc_units)
+        self.relu = nn.ReLU()
+        self.fc3 = nn.Linear(fc_units, len(dataset.classes))
+
+    def forward(self, x):
+        x = self.flatten(x)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
+        return F.log_softmax(x, dim=1)
+
+class cnn_mnist(nn.Module):
+    def __init__(self, dataset):
+        conv1_filters = 32
+        conv2_filters = 64
+        fc_units = 512
+        conv_kernel_size = (5, 5)
+        pool_kernel_size = (2, 2)
+        conv_stride = (1, 1)
+        pool_stride = pool_kernel_size
+        padding = 1
+
+        s, _ = conv_out_size(dataset[0][0].shape[1:3], conv_kernel_size, (padding,)*4, conv_stride)
+        s, _ = conv_out_size(s, pool_kernel_size, (padding,)*4, pool_kernel_size)
+        s, _ = conv_out_size(s, conv_kernel_size, (padding,)*4, conv_stride)
+        s, _ = conv_out_size(s, pool_kernel_size, (padding,)*4, pool_kernel_size)
+
+        super(cnn_mnist, self).__init__()
+        self.conv1 = nn.Conv2d(dataset[0][0].shape[0], conv1_filters, kernel_size=conv_kernel_size, padding=padding)
+        self.conv2 = nn.Conv2d(conv1_filters, conv2_filters, kernel_size=conv_kernel_size, padding=padding)
+        self.relu = nn.ReLU()
+        self.pool = nn.MaxPool2d(pool_kernel_size, padding=padding)
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(conv2_filters*s[0]*s[1], fc_units)
+        self.fc2 = nn.Linear(fc_units, len(dataset.classes))
+
+    def forward(self, x):
+        x = self.pool(self.relu(self.conv1(x)))
+        x = self.pool(self.relu(self.conv2(x)))
+        x = self.flatten(x)
+        x = self.relu(self.fc1(x))
+        x = self.fc2(x)
+        return F.log_softmax(x, dim=1)
+
+class cnn_cifar10(nn.Module):
+    def __init__(self, dataset):
+        conv1_filters = 64
+        conv2_filters = 64
+        fc1_units = 384
+        fc2_units = 192
+        conv_kernel_size = (5, 5)
+        pool_kernel_size = (3, 3)
+        conv_stride = (1, 1)
+        pool_stride = (2, 2)
+        padding = 'same'
+
+        s, conv1_padding = conv_out_size(dataset[0][0].shape[1:3], conv_kernel_size, padding, conv_stride)
+        s, pool1_padding = conv_out_size(s, pool_kernel_size, padding, pool_stride)
+        s, conv2_padding = conv_out_size(s, conv_kernel_size, padding, conv_stride)
+        s, pool2_padding = conv_out_size(s, pool_kernel_size, padding, pool_stride)
+
+        super(cnn_cifar10, self).__init__()
+        self.conv1 = nn.Conv2d(dataset[0][0].shape[0], conv1_filters, kernel_size=conv_kernel_size, stride=conv_stride, padding=padding)
+        self.conv2 = nn.Conv2d(conv1_filters, conv2_filters, kernel_size=conv_kernel_size, stride=conv_stride, padding='same')
+        self.relu = nn.ReLU()
+        self.pool1_pad = nn.ZeroPad2d(pool1_padding)
+        self.pool1 = nn.MaxPool2d(pool_kernel_size, stride=pool_stride, padding=0)
+        self.pool2_pad = nn.ZeroPad2d(pool2_padding)
+        self.pool2 = nn.MaxPool2d(pool_kernel_size, stride=pool_stride, padding=0)
+        self.norm = nn.LocalResponseNorm(4, alpha=0.001/9)
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(conv2_filters*s[0]*s[1], fc1_units)
+        self.fc2 = nn.Linear(fc1_units, fc2_units)
+        self.fc3 = nn.Linear(fc2_units, len(dataset.classes))
+
+    def forward(self, x):
+        x = self.norm(self.pool1(self.pool1_pad(self.relu(self.conv1(x)))))
+        x = self.pool2(self.pool2_pad(self.norm(self.relu(self.conv2(x)))))
+        x = self.flatten(x)
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.fc3(x)
+        return F.log_softmax(x, dim=1)
+
+class lenet5(nn.Module):
+    def __init__(self, dataset):
+        super(lenet5, self).__init__()
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=6, kernel_size=5, stride=1),
+            nn.ReLU(),
+            nn.AvgPool2d(kernel_size=2),
+            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1),
+            nn.ReLU(),
+            nn.AvgPool2d(kernel_size=2),
+            nn.Conv2d(in_channels=16, out_channels=120, kernel_size=5, stride=1),
+            nn.ReLU()
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features=120, out_features=84),
+            nn.ReLU(),
+            nn.Linear(in_features=84, out_features=10),
+        )
+
+    def forward(self, x):
+        x = self.feature_extractor(x)
+        x = torch.flatten(x, 1)
+        logits = self.classifier(x)
+        return F.log_softmax(logits, dim=1)
+
+'''
+class resnet18(nn.Module):
+    def __init__(self, dataset):
+        model_fe = torchvision.models.quantization.resnet18(pretrained=True, progress=True, quantize=False)
+        self.model = create_combined_model(model_fe)
+
+    def forward(self, x):
+        return self.model(x)
+'''
+'''
+Quantization of Resnet18
+if args.model == 'resnet':
+    model.fuse_model()
+    model = create_combined_model(model)
+    model[0].qconfig = torch.quantization.default_qat_qconfig
+    model = torch.quantization.prepare_qat(model, inplace=True)
+    for param in model.parameters():
+        param.requires_grad = True
+'''
+
+'''
 class MLP(nn.Module):
     def __init__(self, dim_in, dim_hidden, dim_out):
         super(MLP, self).__init__()
@@ -23,7 +164,6 @@ class MLP(nn.Module):
         x = self.relu(x)
         x = self.layer_hidden(x)
         return self.softmax(x)
-
 
 class CNNMnist(nn.Module):
     def __init__(self, args):
@@ -42,7 +182,6 @@ class CNNMnist(nn.Module):
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
-
 
 class CNNFashion_Mnist(nn.Module):
     def __init__(self, args):
@@ -65,7 +204,6 @@ class CNNFashion_Mnist(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.fc(out)
         return out
-
 
 class CNNCifar(nn.Module):
     def __init__(self, args):
@@ -100,7 +238,6 @@ class modelC(nn.Module):
 
         self.class_conv = nn.Conv2d(192, n_classes, 1)
 
-
     def forward(self, x):
         x_drop = F.dropout(x, .2)
         conv1_out = F.relu(self.conv1(x_drop))
@@ -119,29 +256,4 @@ class modelC(nn.Module):
         pool_out.squeeze_(-1)
         pool_out.squeeze_(-1)
         return pool_out
-
-class LeNet5(nn.Module):
-    def __init__(self):
-        super(LeNet5, self).__init__()
-        self.feature_extractor = nn.Sequential(            
-            nn.Conv2d(in_channels=3, out_channels=6, kernel_size=5, stride=1),
-            nn.ReLU(),
-            nn.AvgPool2d(kernel_size=2),
-            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1),
-            nn.ReLU(),
-            nn.AvgPool2d(kernel_size=2),
-            nn.Conv2d(in_channels=16, out_channels=120, kernel_size=5, stride=1),
-            nn.ReLU()
-        )
-
-        self.classifier = nn.Sequential(
-            nn.Linear(in_features=120, out_features=84),
-            nn.ReLU(),
-            nn.Linear(in_features=84, out_features=10),
-        )
-    
-    def forward(self, x):
-        x = self.feature_extractor(x)
-        x = torch.flatten(x, 1)
-        logits = self.classifier(x)
-        return F.log_softmax(logits, dim=1)
+'''
