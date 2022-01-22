@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.8.10
@@ -12,10 +13,11 @@ import torch
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
+import datasets, models
 from options import args_parser
+from utils import average_updates, exp_details
+from sampling import get_splits
 from update import Client, inference
-from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar, LeNet5
-from utils import get_datasets_splits, average_updates, exp_details
 
 
 if __name__ == '__main__':
@@ -32,65 +34,14 @@ if __name__ == '__main__':
     device = 'cuda:%d' % args.gpu if args.gpu is not None else 'cpu'
 
     # Load datasets and splits
-    train_dataset, test_dataset, train_split, test_split, emds = get_datasets_splits(args)
-
-    '''
-    labels = np.array(train_dataset.targets)
-    distributions = {}
-    for user in train_split:
-        # print("User: " + str(user))
-        distribution = [0,0,0,0,0,0,0,0,0,0]
-        for idx in train_split[user]:
-            distribution[labels[int(idx)]] += 1
-            # print(labels[int(idx)], end =',')
-            # print(idx)
-        # print(distribution)
-        distributions[user] = distribution
-        # print(distributions[user])
-        # print(user_probabilities[user])
-    from test_sampling import emd_distance
-    non_identicalness = emd_distance(distributions)
-    '''
+    train_dataset, test_dataset = getattr(datasets, args.dataset)(args)
+    train_split, test_split, train_emds, test_emds = get_splits(train_dataset, test_dataset, args.num_clients, args.iid, args.balance)
 
     # Load model
-    if args.model == 'cnn':
-        # Convolutional neural netork
-        if args.dataset == 'mnist':
-            model = CNNMnist(args=args)
-        elif args.dataset == 'fmnist':
-            model = CNNFashion_Mnist(args=args)
-        elif args.dataset == 'cifar10':
-            model = CNNCifar(args=args)
-    elif args.model == 'mlp':
-        # Multi-layer preceptron
-        img_size = train_dataset[0][0].shape
-        len_in = 1
-        for x in img_size:
-            len_in *= x
-            model = MLP(dim_in=len_in, dim_hidden=64, dim_out=len(train_dataset.classes))
-    elif args.model == 'lenet5':
-        # LeNet5
-        model = LeNet5()
-    elif args.model == 'resnet18': # TODO: fix or remove
-        # ResNet18
-        model_fe = torchvision.models.quantization.resnet18(pretrained=True, progress=True, quantize=False)
-        model = create_combined_model(model_fe)
-    else:
-        exit('Error: unrecognized model')
-    model.to(device)
-
-    # Quantization of Resnet18 # TODO: fix or remove
-    # if args.model == 'resnet':
-    #     model.fuse_model()
-    #     model = create_combined_model(model)
-    #     model[0].qconfig = torch.quantization.default_qat_qconfig
-    #     model = torch.quantization.prepare_qat(model, inplace=True)
-
-    #     for param in model.parameters():
-    #         param.requires_grad = True
+    model = getattr(models, args.model)(train_dataset).to(device)
 
     # Print experiment details
-    exp_details(args, model, emds)
+    exp_details(args, model, train_dataset, train_emds)
 
     # Create clients
     clients = []

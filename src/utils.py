@@ -2,108 +2,54 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.8.10
 
+
 import copy
 import torch
 from torch import nn
-from torchvision import datasets, transforms
-from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
-from sampling import cifar10_iid, cifar10_noniid, cifar10_noniid_unequal
-from sampling import get_splits
+from torchinfo import summary
+from math import ceil
 
 
-def get_datasets_splits(args):
-    """ Returns train and test datasets and a user group which is a dict where
-    the keys are the user index and the values are the corresponding data for
-    each of those users.
-    """
+def get_dataset_mean_std(dataset):
+    loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, num_workers=0)
+    examples, lebels = next(iter(loader))
+    mean, std = examples.mean([0,2,3]), examples.std([0,2,3]) # shape of examples = [b,c,w,h]
 
-    if args.dataset == 'cifar10':
-        data_dir = '../data/cifar10/'
+    return mean, std
 
-        if args.model == 'resnet': # Why specific transformations for resnet?
-            apply_transform = transforms.Compose([
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-        else:
-            apply_transform = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+def conv_out_size(s_in, kernel_size, padding, stride):
+    if padding == 'same':
+        s_out = (ceil(s_in[0]/stride[0]), ceil(s_in[1]/stride[1]))
+        padding_h = max((s_out[0] - 1)*stride[0] + kernel_size[0] - s_in[0], 0)
+        padding_w = max((s_out[1] - 1)*stride[1] + kernel_size[1] - s_in[1], 0)
+        padding_l = padding_w//2
+        padding_r = padding_w - padding_l
+        padding_t = padding_h//2
+        padding_b = padding_h - padding_t
+        return s_out, (padding_l, padding_r, padding_t, padding_b)
 
-        train_dataset = datasets.CIFAR10(data_dir, train=True, download=True,
-                                       transform=apply_transform)
+    h_out = int((s_in[0] - kernel_size[0] + padding[2] + padding[3])/stride[0] + 1)
+    w_out = int((s_in[1] - kernel_size[1] + padding[0] + padding[1])/stride[1] + 1)
 
-        test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
-                                      transform=apply_transform)
-
-        ## sample training data amongst users
-        #if args.iid:
-        #    # Sample IID user data from CIFAR-10
-        #    train_split = cifar10_iid(train_dataset, args.num_clients)
-        #else:
-        #    # Sample Non-IID user data from CIFAR-10
-        #    if args.unequal:
-        #        # Choose uneuqal splits for every user
-        #        user_groups = cifar10_noniid_unequal(train_dataset, args.num_clients)
-        #    else:
-        #        # Choose equal splits for every user
-        #        train_split = cifar10_noniid(train_dataset, args.num_clients)
-
-    elif args.dataset == 'mnist' or 'fmnist':
-        if args.dataset == 'mnist':
-            data_dir = '../data/mnist/'
-        else:
-            data_dir = '../data/fmnist/'
-
-        apply_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))])
-
-        train_dataset = datasets.MNIST(data_dir, train=True, download=True,
-                                       transform=apply_transform)
-
-        test_dataset = datasets.MNIST(data_dir, train=False, download=True,
-                                      transform=apply_transform)
-
-        ## sample training data amongst users
-        #if args.iid:
-        #    # Sample IID user data from Mnist
-        #    train_split = mnist_iid(train_dataset, args.num_clients)
-        #else:
-        #    # Sample Non-IID user data from Mnist
-        #    if args.unequal:
-        #        # Chose uneuqal splits for every user
-        #        train_split = mnist_noniid_unequal(train_dataset, args.num_clients)
-        #    else:
-        #        # Chose euqal splits for every user
-        #        train_split = mnist_noniid(train_dataset, args.num_clients)
-
-    splits, emds = get_splits(train_dataset, test_dataset, args.num_clients, args.iid, args.balance)
-
-    return train_dataset, test_dataset, splits[0], splits[1], emds
-
+    return (h_out, w_out), padding
 
 def average_updates(w, n_k):
     """
-    Returns the average of the weights.
+    Returns the average of the updates.
     """
 
     w_avg = copy.deepcopy(w[0])
     for key in w_avg.keys():
-        #w_avg[key] *= n_k[0]
         w_avg[key] = torch.mul(w_avg[key], n_k[0])
         for i in range(1, len(w)):
-            #w_avg[key] += n_k[i]*w[i][key]
             w_avg[key] = torch.add(w_avg[key], w[i][key], alpha=n_k[i])
-        #w_avg[key] /= sum(n_k)
         w_avg[key] = torch.div(w_avg[key], sum(n_k))
     return w_avg
 
-
-def exp_details(args, model, emds):
-    model = str(model).replace('\n','\n                           ')
+def exp_details(args, model, train_dataset, train_emds):
     device = str(torch.cuda.get_device_properties(torch.cuda.current_device())) if args.gpu is not None else 'CPU'
+    summ = str(summary(model, (args.batch_size,)+tuple(train_dataset[0][0].shape)))
+    summ = '    '+summ.replace('\n', '\n    ')
 
     if args.centralized:
         algo = 'Centralized'
@@ -131,7 +77,6 @@ def exp_details(args, model, emds):
     print(f'    Momentum             : {args.momentum}')
     print(f'    Dataset              : {args.dataset}')
     print(f'    Device               : {device}')
-    print(f'    Model                : {model}')
     print('')
 
     if not args.centralized:
@@ -141,13 +86,16 @@ def exp_details(args, model, emds):
         print(f'    Fraction of clients  : {args.frac_clients}')
         print(f'    Server learning rate : {args.server_lr}')
         print(f'    Server momentum      : {args.server_momentum}')
-        print(f'    IID/EMD              : {args.iid}/{emds[0]}')
-        print(f'    Balance              : {args.balance}')
+        print('    IID                  : %g (EMD: %.3g)' % (args.iid, train_emds[0]))
+        print('    Balance              : %g (EMD: %.3g)' % (args.balance, train_emds[1]))
         print(f'    System heterogeneity : {args.hetero}')
         #print(f'    FedIR                : {args.fedir}')
         print(f'    FedVC client size    : {args.fedvc_nvc}')
         print(f'    FedProx mu           : {args.fedprox_mu}')
         print('')
+
+    print('    Model:')
+    print(summ)
 
     return
 

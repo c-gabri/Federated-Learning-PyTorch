@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.8.10
@@ -6,6 +5,8 @@
 
 import argparse
 import numpy as np
+from inspect import getmembers, isfunction, isclass
+import datasets, models
 
 
 def args_parser():
@@ -14,8 +15,8 @@ def args_parser():
 
     # Federated setting
     args_setting = parser.add_argument_group('federated setting arguments')
-    args_setting.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10','mnist'],
-                        help='dataset name') # TODO: remove or implement fmnist
+    args_setting.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction)],
+                        help='dataset name')
     args_setting.add_argument('--iid', type=float, default='inf',
                         help='Identicalness of class distributions')
     args_setting.add_argument('--balance', type=float, default='inf',
@@ -50,7 +51,7 @@ def args_parser():
                         help='number of epochs')
     args_algo.add_argument('--batch_size', '-B', type=int, default=50,
                         help='batch size')
-    args_algo.add_argument('--lr', type=float, default=0.01,
+    args_algo.add_argument('--lr', type=float, default=0.1,
                         help='learning rate')
     args_algo.add_argument('--momentum', type=float, default=0,
                         help='SGD momentum')
@@ -63,8 +64,8 @@ def args_parser():
 
     # Model arguments
     args_model = parser.add_argument_group('model arguments')
-    args_model.add_argument('--model', type=str, default='lenet5', choices=['lenet5','cnn','mlp'],
-                        help='model name') # TODO: fix or remove resnet18
+    args_model.add_argument('--model', type=str, default='lenet5', choices=[c[0] for c in getmembers(models, isclass)],
+                        help='model name')
     args_model.add_argument('--kernel_num', type=int, default=9,
                         help='number of each kind of kernel')
     args_model.add_argument('--kernel_sizes', type=str, default='3,4,5',

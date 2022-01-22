@@ -3,93 +3,83 @@
 # Python version: 3.8.10
 
 
+import torch
 import numpy as np
 from torchvision import datasets, transforms
 import random
 import matplotlib.pyplot as plt
 from scipy import stats
 
+
+# TODO: implement split w/o reimmission?
+
 def earthmover_distance(N_class_client):
-    N_class_client = N_class_client[~np.all(N_class_client == 0, axis=1)]
+    N_class_client = N_class_client[~torch.all(N_class_client == 0, axis=1)]
     N_client = N_class_client.sum(1, keepdims=True)
     N = N_class_client.sum()
     q = N_class_client / N_client
     p = (N_class_client).sum(0, keepdims=True) / N
-    emd = (np.abs(q - p).sum(1, keepdims=True) * N_client).sum() / N
+    emd = (torch.abs(q - p).sum(1, keepdims=True) * N_client).sum() / N
 
     return emd
+
+def get_split(dataset, q_class, q_client, alpha_class, alpha_client, type):
+    N = len(dataset)
+    K, C = q_class.shape
+    N_class_client = (q_class.mul(q_client.mul(N))).round().to(int)
+    emd_class = earthmover_distance(N_class_client)
+    emd_client = torch.abs(N_class_client.sum(1)/N_class_client.sum() - torch.tensor([1/K]*K)).sum()
+
+    y = torch.arange(K)
+    left = torch.zeros(K)
+    for c in range(C):
+        plt.barh(y, N_class_client[:,c], left=left, height=1)
+        left += N_class_client[:,c]
+    plt.xlim((0,max(left)))
+    plt.xlabel('Class distribution')
+    plt.ylabel('Client')
+    alpha_class_str = '∞' if alpha_class == float('inf') else '%g' % alpha_class
+    alpha_client_str = '∞' if alpha_client == float('inf') else '%g' % alpha_client
+    plt.title('$α_{class} = %s, α_{client} = $%s' % (alpha_class_str, alpha_client_str))
+    plt.tight_layout()
+    plt.savefig('../save/distribution_%s.png' % type)
+    #plt.show()
+
+    split = {}
+    for c in range(C):
+        idxs_class = (np.array(dataset.targets) == c).nonzero()[0]
+        for k in range(K):
+            if c == 0: split[k] = []
+            split[k] += list(np.random.choice(idxs_class, N_class_client[k,c].item(), replace=True))
+
+    return split, (emd_class, emd_client)
 
 def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
     C = len(train_dataset.classes)
 
     if alpha_class == 0:
-        q_class = np.zeros((K,C))
+        q_class = torch.zeros((K,C))
         for k in range(K):
             q_class[k,np.random.randint(low=0, high=C)] = 1
     elif alpha_class == float('inf'):
-        q_class = np.ones((K,C))/C
+        q_class = torch.ones((K,C)).divide(C)
     else:
-        p_class = np.array([1/C]*C)
-        q_class = np.random.dirichlet(alpha_class*p_class, K)
+        p_class = torch.ones(C).divide(C)
+        q_class = torch.distributions.dirichlet.Dirichlet(alpha_class*p_class).sample((K,))
 
     if alpha_client == 0:
-        q_client = np.zeros(K).reshape((K,1))
+        q_client = torch.zeros(K).reshape((K,1))
         q_client[np.random.randint(low=0, high=K)] = 1
     elif alpha_client == float('inf'):
-        q_client = (np.ones(K)/K).reshape((K,1))
+        q_client = (torch.ones(K).divide(K)).reshape((K,1))
     else:
-        p_client = np.array([1/K]*K)
-        q_client = np.random.dirichlet(alpha_client*p_client).reshape((K,1))
+        p_client = torch.ones(K).divide(K)
+        q_client = torch.distributions.dirichlet.Dirichlet(alpha_client*p_client).sample().reshape((K,1))
 
-    splits = ({}, {})
-    emds = []
-    for i, dataset in enumerate((train_dataset, test_dataset)):
-        N = len(dataset)
-        N_class = np.array([(np.array(dataset.targets) == c).sum() for c in range(C)]).reshape((1,C))
-        N_class_client = ((q_class*N_class)/(q_class*N_class).sum(1, keepdims=True)*(q_client*N)).round().astype(int)
-        #print(N_class_client)
+    train_split, train_emds = get_split(train_dataset, q_class, q_client, alpha_class, alpha_client, 'train')
+    test_split, test_emds = get_split(test_dataset, q_class, q_client, alpha_class, alpha_client, 'test')
 
-        #diff = N_class[0] - N_class_client.sum(0)
-        #for c in range(C):
-        #    while(diff[c] != 0):
-        #        k = np.random.randint(low=0, high=K)
-        #        if N_class_client[k,c] + np.sign(diff[c]) >= 0:
-        #            N_class_client[k,c] += np.sign(diff[c])
-        #            diff[c] -= np.sign(diff[c])
-
-        emds.append(earthmover_distance(N_class_client))
-
-        y = np.arange(K)
-        left = np.zeros(K)
-        for c in range(C):
-            plt.barh(y, N_class_client[:,c], left=left, height=1)
-            left += N_class_client[:,c]
-        plt.xlim((0,max(left)))
-        plt.xlabel('Class distribution')
-        plt.ylabel('Client')
-        alpha_class_str = '∞' if alpha_class == float('inf') else '%g' % alpha_class
-        alpha_client_str = '∞' if alpha_client == float('inf') else '%g' % alpha_client
-        plt.title('$α_{class} = %s, α_{client} = $%s' % (alpha_class_str, alpha_client_str))
-        plt.tight_layout()
-        split_type = 'train' if i == 0 else 'test'
-        plt.savefig('../save/distribution_%s.png' % split_type, dpi='figure')
-        plt.show()
-
-        #print(N_class_client)
-        #print(N_class_client.sum())
-        #print(N_class_client.sum(0))
-        #print(N_class_client.sum(1))
-
-        for c in range(C):
-            idxs_class = (np.array(dataset.targets) == c).nonzero()[0]
-            for k in range(K):
-                if c == 0: splits[i][k] = []
-                idxs_class_client = np.random.choice(list(idxs_class), N_class_client[k,c], replace=True)
-                splits[i][k] += list(idxs_class_client)
-
-        for k in range(K): splits[i][k] = list(splits[i][k])
-
-    return splits, emds
+    return train_split, test_split, train_emds, test_emds
 
 def mnist_iid(dataset, num_clients):
     """
