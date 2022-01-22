@@ -54,7 +54,7 @@ class Client(object):
             optimizer = torch.optim.SGD(model.parameters(), lr=self.args.lr, momentum=self.args.momentum)
         elif self.args.optimizer == 'adam':
             optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr, weight_decay=1e-4) # TODO: make weight_decay command line parameter, also for SGD?
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
         # Set epochs based on system heterogeneity
         if self.args.hetero > 0:

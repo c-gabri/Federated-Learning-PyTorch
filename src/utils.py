@@ -8,6 +8,7 @@ import torch
 from torch import nn
 from torchinfo import summary
 from math import ceil
+import numpy as np
 
 
 def update_plot(p, new_xdata, new_ydata):
