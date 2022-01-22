@@ -10,6 +10,14 @@ from torchinfo import summary
 from math import ceil
 
 
+def update_plot(p, new_xdata, new_ydata):
+        p.set_xdata(np.append(p.get_xdata(), new_xdata))
+        p.set_ydata(np.append(p.get_ydata(), new_ydata))
+        p.axes.relim()
+        p.axes.autoscale_view()
+        plt.draw()
+        plt.pause(0.001)
+
 def get_dataset_mean_std(dataset):
     loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, num_workers=0)
     examples, lebels = next(iter(loader))
@@ -48,7 +56,7 @@ def average_updates(w, n_k):
 
 def exp_details(args, model, train_dataset, train_emds):
     device = str(torch.cuda.get_device_properties(torch.cuda.current_device())) if args.gpu is not None else 'CPU'
-    summ = str(summary(model, (args.batch_size,)+tuple(train_dataset[0][0].shape)))
+    summ = str(summary(model, (args.batch_size,)+tuple(train_dataset[0][0].shape), verbose=0))
     summ = '    '+summ.replace('\n', '\n    ')
 
     if args.centralized:

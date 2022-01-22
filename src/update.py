@@ -9,14 +9,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
-
-def update_plot(p, new_xdata, new_ydata):
-        p.set_xdata(np.append(p.get_xdata(), new_xdata))
-        p.set_ydata(np.append(p.get_ydata(), new_ydata))
-        p.axes.relim()
-        p.axes.autoscale_view()
-        plt.draw()
-        plt.pause(0.001)
+from utils import update_plot
 
 class Client(object):
     def __init__(self, args, train_dataset, train_idxs, test_dataset, test_idxs, logger, device):
