@@ -3,50 +3,35 @@
 # Python version: 3.8.10
 
 
-from torchvision import datasets, transforms
+import torchvision.transforms as tvtransforms
 
+from datasets_utils import get_datasets
 
-data_dir = '../data/'
 
 def cifar10(args):
-    transform = transforms.Compose([ # TODO: transformations order?
-        transforms.ToTensor(),
-        transforms.RandomCrop(24),
-        transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(contrast=[0.2, 1.8]), # TODO: limit brightness, don't change saturation and hue (like on TensorFlow tutorial)?
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)), # TODO: Per-image normalization (like on TensorFlow tutoria)l? Should normalization consider other transforms?
-    ])
+    train_transforms = [
+        tvtransforms.RandomCrop(24),
+        tvtransforms.RandomHorizontalFlip(),
+        tvtransforms.ColorJitter(brightness=(0.5,1.5), contrast=(0.5,1.5)),
+    ]
+    test_transforms = [
+        tvtransforms.CenterCrop(24)
+    ]
 
-    '''
-    if args.model == 'resnet':
-        transform = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    '''
+    #train_transforms = []
+    #test_transforms = []
 
-    train_dataset = datasets.CIFAR10(data_dir+'cifar10', train=True, download=True, transform=transform)
-    test_dataset = datasets.CIFAR10(data_dir+'cifar10', train=False, download=True, transform=transform)
 
-    return train_dataset, test_dataset
+    return get_datasets(name='CIFAR10', train_transforms=train_transforms, test_transforms=test_transforms, args=args)
 
 def mnist(args):
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))])
+    train_transforms = []
+    test_transforms = []
 
-    train_dataset = datasets.MNIST(data_dir+'mnist', train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST(data_dir+'mnist', train=False, download=True, transform=transform)
-
-    return train_dataset, test_dataset
+    return get_datasets(name='MNIST', train_transforms=train_transforms, test_transforms=test_transforms, args=args)
 
 def fmnist(args):
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.2860,), (0.3530,))])
+    train_transforms = []
+    test_transforms = []
 
-    train_dataset = datasets.MNIST(data_dir+'fmnist', train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST(data_dir+'fmnist', train=False, download=True, transform=transform)
-
-    return train_dataset, test_dataset
+    return get_datasets(name='FashionMNIST', train_transforms=train_transforms, test_transforms=test_transforms, args=args)

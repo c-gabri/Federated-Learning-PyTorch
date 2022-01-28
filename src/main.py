@@ -1,91 +1,122 @@
-
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Python version: 3.8.10
 
 
 import copy
-import time
-import pickle
-import numpy as np
+import numpy as np # TODO: try using torch only
+import re
+from time import time
+from datetime import timedelta
 
 import torch
-from torch.utils.data import DataLoader
-from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader, Subset
 
-import datasets, models
+import datasets, models, optimizers, schedulers
 from options import args_parser
-from utils import average_updates, exp_details
+from utils import average_updates, inference, exp_details
+from datasets_utils import get_images_fig, get_dists_fig
 from sampling import get_splits
-from update import Client, inference
+from client import Client
 
 
 if __name__ == '__main__':
     # Start timer
-    start_time = time.time()
-
-    # Initialize logger. TODO: use or remove
-    logger = SummaryWriter('../logs')
+    start_time = time()
 
     # Parse arguments
     args = args_parser()
 
-    # Set device
-    device = 'cuda:%d' % args.gpu if args.gpu is not None else 'cpu'
+    # Initialize RNGs
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
+        np.random.seed(args.seed)
 
-    # Load datasets and splits
-    train_dataset, test_dataset = getattr(datasets, args.dataset)(args)
-    train_split, test_split, train_emds, test_emds = get_splits(train_dataset, test_dataset, args.num_clients, args.iid, args.balance)
+    # Load datasets, splits and dataloaders
+    datasets = getattr(datasets, args.dataset)(args)
 
-    # Load model
-    model = getattr(models, args.model)(train_dataset).to(device)
+    splits, emds, dists = get_splits(datasets, args.num_clients, args.iid, args.balance)
 
-    # Print experiment details
-    exp_details(args, model, train_dataset, train_emds)
+    loaders = {}
+    #loaders['train'] = DataLoader(datasets['train'], batch_size=args.train_bs, shuffle=True)
+    #loaders['valid'] = DataLoader(datasets['valid'], batch_size=args.test_bs, shuffle=False)
+    #loaders['test'] = DataLoader(datasets['test'], batch_size=args.test_bs, shuffle=False)
+    for type in splits.keys():
+        idxs = []
+        for client_id in splits[type].keys():
+            idxs += splits[type][client_id]
+        batch_size = args.train_bs if type == 'train' else args.test_bs
+        shuffle = True if type == 'train' else False
+        loaders[type] = DataLoader(Subset(datasets[type], idxs), batch_size=batch_size, shuffle=shuffle)
+
+    # Get original and transformed examples
+    images_fig = get_images_fig(datasets, args.train_bs)
+    dists_fig = get_dists_fig(dists, args.iid, args.balance)
 
     # Create clients
     clients = []
-    for client_idx in range(args.num_clients):
-        clients.append(Client(args=args, train_dataset=train_dataset, train_idxs=train_split[client_idx], test_dataset=test_dataset, test_idxs=test_split[client_idx], logger=logger, device=device))
+    for client_id in range(args.num_clients):
+        client_idxs = {key:splits[key][client_id] if splits[key] is not None else None for key in splits.keys()}
+        clients.append(Client(args=args, id=client_id, datasets=datasets, idxs=client_idxs))
 
     # Set client sampling probabilities. TODO: allow non-uniform w/o FedVC?
     if args.fedvc_nvc > 0:
         # Proportional to the number of examples
-        p_clients = np.array([len(train_split[client_idx]) for client_idx in train_split])
+        p_clients = np.array([len(splits['train'][client_idx]) for client_idx in splits['train']])
         p_clients = p_clients / p_clients.sum()
     else:
         # Uniform
         p_clients = None
     #print('Client sampling probabilities: %s' % p_clients)
 
-    # Train server model
-    train_accs_avg, train_losses_avg = [], []
-    v = None
-    if not args.quiet: print('\nTraining:')
+    # Load model
+    model = getattr(models, args.model)(datasets['train'], args.model_args).to(args.device)
 
-    init_end_time = time.time()
+    # Print experiment details
+    optimizer = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
+    scheduler = getattr(schedulers, args.sched)(optimizer, args.sched_args)
+    summary = exp_details(args, model, datasets['train'], datasets['valid'], datasets['test'], emds, scheduler)
+    print('\n'+summary)
+
+    # Initialize logger
+    if not args.no_log:
+        from torch.utils.tensorboard import SummaryWriter
+        logger = SummaryWriter(args.log_dir)
+        logger.add_text('Experiment summary', re.sub('^', '    ', re.sub('\n', '\n    ', summary)))
+        logger.add_figure('Distributions', dists_fig)
+        logger.add_figure('Images', images_fig)
+        logger.add_graph(model, iter(loaders['train']).next()[0].to(args.device))
+    else:
+        logger = None
+
+    init_end_time = time()
+
+    # Train server model
+    if not args.quiet: print('Training:')
+    v = None
+
     for round in range(args.rounds):
-        updates, ns = [], []
-        train_acc_avg, train_loss_avg = 0., 0.
         #model.train()
 
         # Sample clients
         m = max(int(args.frac_clients * args.num_clients), 1)
-        client_idxs = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)
-        if not args.quiet: print('    Selected clients: %s' % client_idxs)
+        client_ids = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)
 
         # Train client models
-        for i, client_idx in enumerate(client_idxs):
-            update, loss = clients[client_idx].train(model=copy.deepcopy(model), round=round, i=i, m=m)
+        updates, num_examples, train_loss_avg = [], [], 0.
+        for i, client_id in enumerate(client_ids):
+            client_update, client_num_examples, client_loss = clients[client_id].train(model=copy.deepcopy(model), round=round, i=i, m=m, device=args.device, logger=logger)
 
-            if update is not None:
-                updates.append(copy.deepcopy(update))
-                train_loss_avg += loss * clients[client_idx].n
-                ns.append(clients[client_idx].n)
+            if client_update is not None:
+                updates.append(copy.deepcopy(client_update))
+                train_loss_avg += client_loss * client_num_examples
+                num_examples.append(client_num_examples)
 
         if len(updates) > 0:
+            train_loss_avg /= sum(num_examples)
+
             # Update server model
-            update_avg = average_updates(updates, ns)
+            update_avg = average_updates(updates, num_examples)
             if v is None:
                 v = copy.deepcopy(update_avg)
             else:
@@ -96,82 +127,65 @@ if __name__ == '__main__':
                 new_weights[key] = torch.sub(new_weights[key], v[key], alpha=args.server_lr)
             model.load_state_dict(new_weights)
 
-            # Compute average client training accuracy and loss
-            for client_idx, client in enumerate(clients):
-                acc, _ = client.inference(model, test=False)
-                if acc is not None: train_acc_avg += acc * len(train_split[client_idx])
-            train_acc_avg /= len(train_dataset)
-            train_loss_avg /= sum(ns)
-
-            if not args.quiet:
-                print('    Average client training accuracy: {:.2f}%'.format(100*train_acc_avg))
-                print('    Average client training loss: {:.6f}'.format(train_loss_avg))
-
+            # Validate on client datasets
+            train_acc_avg, valid_acc_avg, train_num_examples, valid_num_examples = 0., 0., 0, 0
+            for client_id in range(len(clients)):
+                train_acc_client, _ = clients[client_id].inference(model, type='train', device=args.device)
+                valid_acc_client, _ = clients[client_id].inference(model, type='valid', device=args.device)
+                if train_acc_client != torch.nan:
+                    train_acc_avg += train_acc_client * len(splits['train'][client_id])
+                    train_num_examples += len(splits['train'][client_id])
+                if valid_acc_client != torch.nan:
+                    valid_acc_avg += valid_acc_client * len(splits['valid'][client_id])
+                    valid_num_examples += len(splits['valid'][client_id])
+            train_acc_avg /= train_num_examples
+            valid_acc_avg /= valid_num_examples
         else:
-            train_loss_avg, train_acc_avg = None, None
+            train_loss_avg, train_acc_avg, valid_acc_avg = torch.nan, torch.nan, torch.nan
 
-        train_losses_avg.append(train_loss_avg)
-        train_accs_avg.append(train_acc_avg)
+        # Validate on whole dataset
+        train_acc, _ = inference(model=model, loader=loaders['train'], device=args.device)
+        valid_acc, _ = inference(model=model, loader=loaders['valid'], device=args.device)
 
-    train_end_time = time.time()
+        # Print and log validation results
+        if not args.quiet:
+            print(f'    Average training loss: {train_loss_avg:.6f}')
+            print(f'    Average training accuracy: {train_acc_avg:.3%}')
+            print(f'    Average validation accuracy: {valid_acc_avg:.3%}')
+            print(f'    Training accuracy: {train_acc:.3%}')
+            print(f'    Validation accuracy: {valid_acc:.3%}')
 
-    # Test on whole test set
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
-    test_acc, test_loss = inference(args, model, test_loader, device)
+        if logger is not None:
+            logger.add_scalar(f'Average training loss', train_loss_avg, round+1)
+            logger.add_scalars(f'Average accuracy', {'Training': train_acc_avg, 'Validation': valid_acc_avg}, round+1)
+            logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Validation': valid_acc}, round+1)
 
-    # Test on client test sets
-    test_acc_avg, test_loss_avg = 0., 0.
-    for client_idx in range(args.num_clients):
-        acc, loss = clients[client_idx].inference(model, test=True)
-        if acc is not None:
-            test_acc_avg += len(test_split[client_idx]) * acc
-            test_loss_avg += len(test_split[client_idx]) * loss
-    test_acc_avg /= len(test_dataset)
-    test_loss_avg /= len(test_dataset)
-    test_end_time = time.time()
+    train_end_time = time()
 
+    # Test on client datasets
+    test_acc_avg, test_num_examples = 0., 0
+    for client_id in range(len(clients)):
+        test_acc_client, _ = clients[client_id].inference(model, type='test', device=args.device)
+        if test_acc_client != torch.nan:
+            test_acc_avg += test_acc_client * len(splits['test'][client_id])
+            test_num_examples += len(splits['test'][client_id])
+    test_acc_avg /= test_num_examples
 
+    # Test on whole dataset
+    test_acc, _ = inference(model=model, loader=loaders['test'], device=args.device)
+
+    test_end_time = time()
+
+    # Print and log test results
     print('\nResults:')
-    print("    Test accuracy: {:.2f}%".format(100*test_acc))
-    print("    Test loss: {:.6f}".format(test_loss))
-    print("    Average client test accuracy: {:.2f}%".format(100*test_acc_avg))
-    print("    Average client test loss: {:.6f}".format(test_loss_avg))
-    print("    Train time: {0:0.3f}s".format(train_end_time-init_end_time))
-    print("    Test time: {0:0.3f}s".format(test_end_time-train_end_time))
+    print(f'    Average test accuracy: {test_acc_avg:.3%}')
+    print(f'    Test accuracy: {test_acc:.3%}')
+    print(f'    Train time: {timedelta(seconds=int(train_end_time-init_end_time))}')
+    print(f'    Test time: {timedelta(seconds=int(test_end_time-train_end_time))}')
+    print(f'    Total time: {timedelta(seconds=int(time()-start_time))}')
 
-    # Saving the objects train_losses_avg and train_accuracy:
-    file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
-        format(args.dataset, args.model, args.rounds, args.frac_clients, args.iid,
-               args.rounds, args.batch_size)
+    if logger is not None:
+        logger.add_scalar(f'Average test accuracy', test_acc_avg, round+1)
+        logger.add_scalar(f'Test accuracy', test_acc, round+1)
 
-    with open(file_name, 'wb') as f:
-        #pickle.dump([train_losses_avg, train_accuracy], f)
-        pickle.dump([train_losses_avg], f)
-
-    # PLOTTING (optional)
-    #import matplotlib
-    #import matplotlib.pyplot as plt
-    #matplotlib.use('Agg')
-
-    # Plot Loss curve
-    #plt.figure()
-    #plt.title('Training Loss vs Communication rounds')
-    #plt.plot(range(len(train_losses_avg)), train_losses_avg, color='r')
-    #plt.ylabel('Training loss')
-    #plt.xlabel('Communication Rounds')
-    #plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_loss.png'.
-    #            format(args.dataset, args.model, args.rounds, args.frac_clients,
-    #                   args.iid, args.rounds, args.batch_size))
-
-    # Plot Average Accuracy vs Communication rounds
-    #plt.figure()
-    #plt.title('Average Accuracy vs Communication rounds')
-    #plt.plot(range(len(train_accuracy)), train_accuracy, color='k')
-    #plt.ylabel('Average Accuracy')
-    #plt.xlabel('Communication Rounds')
-    #plt.savefig('../save/fed_{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}]_acc.png'.
-    #            format(args.dataset, args.model, args.rounds, args.frac_clients,
-    #                   args.iid, args.rounds, args.batch_size))
-
-    print('    Total time: {0:0.3f}s'.format(time.time()-start_time))
-
+    logger.close()

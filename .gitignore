@@ -4,4 +4,4 @@
 data
 logs
 save
-src/__pycache__
+__pycache__

@@ -3,21 +3,25 @@
 # Python version: 3.8.10
 
 
-from torch import nn
 import torch
-import torch.nn.functional as F
-from utils import conv_out_size
+from torch import nn
+import torchvision.models as tvmodels
+
+from ghostnet import ghostnet as load_ghostnet
+from models_utils import *
+
 
 class mlp_mnist(nn.Module):
-    def __init__(self, dataset):
-        fc_units = 200
+    input_channels = 1
+    input_resize = (28, 28)
 
+    def __init__(self, dataset, model_args):
         super(mlp_mnist, self).__init__()
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(dataset[0][0].numel(), fc_units)
-        self.fc2 = nn.Linear(fc_units, fc_units)
+        self.fc1 = nn.Linear(28*28, 200)
+        self.fc2 = nn.Linear(200, 200)
         self.relu = nn.ReLU()
-        self.fc3 = nn.Linear(fc_units, len(dataset.classes))
+        self.fc3 = nn.Linear(200, len(dataset.classes))
 
     def forward(self, x):
         x = self.flatten(x)
@@ -26,32 +30,21 @@ class mlp_mnist(nn.Module):
         x = self.fc2(x)
         x = self.relu(x)
         x = self.fc3(x)
-        return F.log_softmax(x, dim=1)
+        return x
 
 class cnn_mnist(nn.Module):
-    def __init__(self, dataset):
-        conv1_filters = 32
-        conv2_filters = 64
-        fc_units = 512
-        conv_kernel_size = (5, 5)
-        pool_kernel_size = (2, 2)
-        conv_stride = (1, 1)
-        pool_stride = pool_kernel_size
-        padding = 1
+    input_channels = 1
+    input_resize = (28, 28)
 
-        s, _ = conv_out_size(dataset[0][0].shape[1:3], conv_kernel_size, (padding,)*4, conv_stride)
-        s, _ = conv_out_size(s, pool_kernel_size, (padding,)*4, pool_kernel_size)
-        s, _ = conv_out_size(s, conv_kernel_size, (padding,)*4, conv_stride)
-        s, _ = conv_out_size(s, pool_kernel_size, (padding,)*4, pool_kernel_size)
-
+    def __init__(self, dataset, model_args):
         super(cnn_mnist, self).__init__()
-        self.conv1 = nn.Conv2d(dataset[0][0].shape[0], conv1_filters, kernel_size=conv_kernel_size, padding=padding)
-        self.conv2 = nn.Conv2d(conv1_filters, conv2_filters, kernel_size=conv_kernel_size, padding=padding)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=5, stride=1, padding=1)
         self.relu = nn.ReLU()
-        self.pool = nn.MaxPool2d(pool_kernel_size, padding=padding)
+        self.pool = nn.MaxPool2d(2, stride=2, padding=1)
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(conv2_filters*s[0]*s[1], fc_units)
-        self.fc2 = nn.Linear(fc_units, len(dataset.classes))
+        self.fc1 = nn.Linear(64*7*7, 512)
+        self.fc2 = nn.Linear(512, len(dataset.classes))
 
     def forward(self, x):
         x = self.pool(self.relu(self.conv1(x)))
@@ -59,50 +52,264 @@ class cnn_mnist(nn.Module):
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
         x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
+        return x
 
 class cnn_cifar10(nn.Module):
-    def __init__(self, dataset):
-        conv1_filters = 64
-        conv2_filters = 64
-        fc1_units = 384
-        fc2_units = 192
-        conv_kernel_size = (5, 5)
-        pool_kernel_size = (3, 3)
-        conv_stride = (1, 1)
-        pool_stride = (2, 2)
-        padding = 'same'
+    input_channels = 3
+    input_resize = (24, 24)
 
-        s, conv1_padding = conv_out_size(dataset[0][0].shape[1:3], conv_kernel_size, padding, conv_stride)
-        s, pool1_padding = conv_out_size(s, pool_kernel_size, padding, pool_stride)
-        s, conv2_padding = conv_out_size(s, conv_kernel_size, padding, conv_stride)
-        s, pool2_padding = conv_out_size(s, pool_kernel_size, padding, pool_stride)
-
+    def __init__(self, dataset, model_args):
         super(cnn_cifar10, self).__init__()
-        self.conv1 = nn.Conv2d(dataset[0][0].shape[0], conv1_filters, kernel_size=conv_kernel_size, stride=conv_stride, padding=padding)
-        self.conv2 = nn.Conv2d(conv1_filters, conv2_filters, kernel_size=conv_kernel_size, stride=conv_stride, padding='same')
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding='same')
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=5, stride=1, padding='same')
         self.relu = nn.ReLU()
-        self.pool1_pad = nn.ZeroPad2d(pool1_padding)
-        self.pool1 = nn.MaxPool2d(pool_kernel_size, stride=pool_stride, padding=0)
-        self.pool2_pad = nn.ZeroPad2d(pool2_padding)
-        self.pool2 = nn.MaxPool2d(pool_kernel_size, stride=pool_stride, padding=0)
+        self.pool_pad = nn.ZeroPad2d((0, 1, 0, 1)) # Equivalent of TensorFlow padding 'SAME'
+        self.pool1 = nn.MaxPool2d(3, stride=2, padding=0)
+        self.pool2 = nn.MaxPool2d(3, stride=2, padding=0)
         self.norm = nn.LocalResponseNorm(4, alpha=0.001/9)
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(conv2_filters*s[0]*s[1], fc1_units)
-        self.fc2 = nn.Linear(fc1_units, fc2_units)
-        self.fc3 = nn.Linear(fc2_units, len(dataset.classes))
+        self.fc1 = nn.Linear(64*6*6, 384)
+        self.fc2 = nn.Linear(384, 192)
+        self.fc3 = nn.Linear(192, len(dataset.classes))
 
     def forward(self, x):
-        x = self.norm(self.pool1(self.pool1_pad(self.relu(self.conv1(x)))))
-        x = self.pool2(self.pool2_pad(self.norm(self.relu(self.conv2(x)))))
+        x = self.norm(self.pool1(self.pool_pad(self.relu(self.conv1(x)))))
+        x = self.pool2(self.pool_pad(self.norm(self.relu(self.conv2(x)))))
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
-        return F.log_softmax(x, dim=1)
+        return x
 
 class lenet5(nn.Module):
-    def __init__(self, dataset):
+    input_channels = 3
+    input_resize = (32, 32)
+
+    def __init__(self, dataset, model_args):
+        super(lenet5, self).__init__()
+
+        if 'norm' not in model_args or model_args['norm'] == 'batch':
+            norm2d = nn.BatchNorm2d
+            norm1d = nn.BatchNorm1d
+        #elif model_args['norm'] == 'group': # TODO: implement
+        #    norm2d =
+        #    norm1d =
+        elif model_args['norm'] == None:
+            norm2d = nn.Identity
+            norm1d = nn.Identity
+        else:
+            raise ValueError("Unsupported norm '%s' for LeNet5")
+
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(3, 64, 5),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            norm2d(64),
+            nn.Conv2d(64, 64, 5),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            norm2d(64))
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64*5*5, 384),
+            nn.ReLU(),
+            norm1d(384),
+            nn.Linear(384, 192))
+
+    def forward(self, x):
+        x = self.feature_extractor(x)
+        x = self.classifier(x)
+        return x
+
+class lenet5_orig(nn.Module):
+    """This implementation follows closely the paper:
+    "Gradient-Based Learning Applied to Document Recognition", by LeCun et al.
+    """
+    input_channels = 1
+    input_resize = (32, 32)
+
+    def __init__(self, dataset, model_args):
+        super(lenet5_orig, self).__init__()
+        orig_c3 = True
+        orig_s = True
+        orig_f7 = True
+        self.activation = nn.Tanh()
+        self.activation_constant = 1.7159
+        self.use_bn = True
+
+        # C1
+        self.c1 = nn.Conv2d(1, 6, 5)
+        if self.use_bn: self.bn1 = nn.BatchNorm2d(6)
+
+        # S2
+        if orig_s:
+            self.s2 = LeNet5_Orig_S(6)
+        else:
+            self.s2 = nn.MaxPool2d(2, 2)
+
+        # C3
+        if orig_c3:
+            self.c3 = LeNet5_Orig_C3()
+        else:
+            self.c3 = nn.Conv2d(6, 16, 5)
+        if self.use_bn: self.bn3 = nn.BatchNorm2d(16)
+
+        # S4
+        if orig_s:
+            self.s4 = LeNet5_Orig_S(16)
+        else:
+            self.s4 = nn.MaxPool2d(2, 2)
+
+        # C5
+        self.c5 = nn.Conv2d(16, 120, 5, bias=True)
+        if self.use_bn: self.bn5 = nn.BatchNorm2d(120)
+
+        # F6
+        self.f6 = nn.Linear(120, 84)
+        if self.use_bn: self.bn6 = nn.BatchNorm1d(84)
+
+        # F7
+        if orig_f7:
+            self.f7 = LeNet5_Orig_F7(84, 10)
+        else:
+            self.f7 = nn.Linear(84, 10)
+
+    def forward(self, x):
+        # C1
+        x = self.c1(x)
+        if self.use_bn:
+            x = self.bn1(x)
+        x = self.activation(x) * self.activation_constant
+
+        # S2
+        x = self.s2(x) # TODO: activation?
+
+        # C3
+        x = self.c3(x)
+        if self.use_bn:
+            x = self.bn3(x)
+        x = self.activation(x) * self.activation_constant
+
+        # S4
+        x = self.s4(x) # TODO: activation?
+
+        # C5
+        x = self.c5(x)
+        if self.use_bn:
+            x = self.bn5(x)
+        x = self.activation(x) * self.activation_constant
+
+        # F6
+        x = x.flatten(1)
+        x = self.f6(x)
+        if self.use_bn:
+            x = self.bn6(x)
+        x = self.activation(x) * self.activation_constant
+
+        # F7
+        x = self.f7(x)
+
+        return x
+
+class mnasnet(nn.Module):
+    input_channels = 3
+    input_resize = 224
+
+    def __init__(self, dataset, model_args):
+        super(mnasnet, self).__init__()
+        width = model_args['width'] if 'width' in model_args else 1
+        dropout = model_args['dropout'] if 'dropout' in model_args else 0.2
+        pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
+        freeze = model_args['freeze'] if 'freeze' in model_args else False
+
+        if pretrained:
+            if width == 1:
+                self.model = tvmodels.mnasnet1_0(pretrained=True, dropout=dropout)
+            elif width == 0.5:
+                self.model = tvmodels.mnasnet0_5(pretrained=True, dropout=dropout)
+            elif width == 0.75:
+                self.model = tvmodels.mnasnet0_75(pretrained=True, dropout=dropout)
+            elif width == 1.3:
+                self.model = tvmodels.mnasnet1_3(pretrained=True, dropout=dropout)
+            else:
+                raise ValueError('Unsupported width for pretrained MNASNet: %s' % width)
+
+            if freeze:
+                for param in self.model.parameters():
+                    param.requires_grad = False
+
+            self.model.classifier[1] = nn.Linear(self.model.classifier[1].in_features, len(dataset.classes))
+
+        else:
+            self.model = tvmodels.mnasnet.MNASNet(alpha=width, num_classes=len(dataset.classes), dropout=dropout)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class ghostnet(nn.Module):
+    input_channels = 3
+    input_resize = 224
+
+    def __init__(self, dataset, model_args):
+        super(ghostnet, self).__init__()
+        width = model_args['width'] if 'width' in model_args else 1.0
+        dropout = model_args['dropout'] if 'dropout' in model_args else 0.2
+        pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
+        freeze = model_args['freeze'] if 'freeze' in model_args else False
+
+        if pretrained:
+            if width != 1:
+                raise ValueError('Unsupported width for pretrained GhostNet: %s' % width)
+            self.model = load_ghostnet(width=1, dropout=dropout)
+            self.model.load_state_dict(torch.load('src/ghostnet_state_dict.pth'), strict=True)
+
+            if freeze:
+                for param in self.model.parameters():
+                    param.requires_grad = False
+
+            self.model.classifier = nn.Linear(self.model.classifier.in_features, len(dataset.classes))
+
+        else:
+            self.model = load_ghostnet(num_classes=len(dataset.classes), width=width, dropout=dropout)
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class mobilenet_v3(nn.Module):
+    input_channels = 3
+    input_resize = 224
+
+    def __init__(self, dataset, model_args):
+        super(mobilenet_v3, self).__init__()
+        width = model_args['width'] if 'width' in model_args else 'large'
+        pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
+        freeze = model_args['freeze'] if 'freeze' in model_args else False
+
+        if width == 'large':
+            self.model = tvmodels.mobilenet_v3_large(pretrained=pretrained)
+        elif width == 'small':
+            self.model = tvmodels.mobilenet_v3_small(pretrained=pretrained)
+        else:
+            raise ValueError('Unsupported width for MobileNetV3: %s' % width)
+
+        if pretrained:
+            if freeze:
+                for param in self.model.parameters():
+                    param.requires_grad = False
+
+        self.model.classifier[0] = nn.Linear(self.model.classifier[0].in_features, self.model.classifier[0].out_features)
+        self.model.classifier[3] = nn.Linear(self.model.classifier[3].in_features, len(dataset.classes))
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+'''
+class lenet5(nn.Module):
+    def __init__(self, dataset, model_args):
         super(lenet5, self).__init__()
         self.feature_extractor = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=6, kernel_size=5, stride=1),
@@ -125,19 +332,18 @@ class lenet5(nn.Module):
         x = self.feature_extractor(x)
         x = torch.flatten(x, 1)
         logits = self.classifier(x)
-        return F.log_softmax(logits, dim=1)
-
+        return x
+'''
 '''
 class resnet18(nn.Module):
-    def __init__(self, dataset):
-        model_fe = torchvision.models.quantization.resnet18(pretrained=True, progress=True, quantize=False)
+    def __init__(self, dataset, model_args):
+        model_fe = tvmodels.quantization.resnet18(pretrained=True, progress=True, quantize=False)
         self.model = create_combined_model(model_fe)
 
     def forward(self, x):
         return self.model(x)
-'''
-'''
-Quantization of Resnet18
+
+#Quantization of Resnet18
 if args.model == 'resnet':
     model.fuse_model()
     model = create_combined_model(model)
@@ -145,115 +351,4 @@ if args.model == 'resnet':
     model = torch.quantization.prepare_qat(model, inplace=True)
     for param in model.parameters():
         param.requires_grad = True
-'''
-
-'''
-class MLP(nn.Module):
-    def __init__(self, dim_in, dim_hidden, dim_out):
-        super(MLP, self).__init__()
-        self.layer_input = nn.Linear(dim_in, dim_hidden)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout()
-        self.layer_hidden = nn.Linear(dim_hidden, dim_out)
-        self.softmax = nn.Softmax(dim=1)
-
-    def forward(self, x):
-        x = x.view(-1, x.shape[1]*x.shape[-2]*x.shape[-1])
-        x = self.layer_input(x)
-        x = self.dropout(x)
-        x = self.relu(x)
-        x = self.layer_hidden(x)
-        return self.softmax(x)
-
-class CNNMnist(nn.Module):
-    def __init__(self, args):
-        super(CNNMnist, self).__init__()
-        self.conv1 = nn.Conv2d(args.num_channels, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 10)
-
-    def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, x.shape[1]*x.shape[2]*x.shape[3])
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
-
-class CNNFashion_Mnist(nn.Module):
-    def __init__(self, args):
-        super(CNNFashion_Mnist, self).__init__()
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=5, padding=2),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.MaxPool2d(2))
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(16, 32, kernel_size=5, padding=2),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(2))
-        self.fc = nn.Linear(7*7*32, 10)
-
-    def forward(self, x):
-        out = self.layer1(x)
-        out = self.layer2(out)
-        out = out.view(out.size(0), -1)
-        out = self.fc(out)
-        return out
-
-class CNNCifar(nn.Module):
-    def __init__(self, args):
-        super(CNNCifar, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return F.log_softmax(x, dim=1)
-
-class modelC(nn.Module):
-    def __init__(self, input_size, n_classes=10, **kwargs):
-        super(AllConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(input_size, 96, 3, padding=1)
-        self.conv2 = nn.Conv2d(96, 96, 3, padding=1)
-        self.conv3 = nn.Conv2d(96, 96, 3, padding=1, stride=2)
-        self.conv4 = nn.Conv2d(96, 192, 3, padding=1)
-        self.conv5 = nn.Conv2d(192, 192, 3, padding=1)
-        self.conv6 = nn.Conv2d(192, 192, 3, padding=1, stride=2)
-        self.conv7 = nn.Conv2d(192, 192, 3, padding=1)
-        self.conv8 = nn.Conv2d(192, 192, 1)
-
-        self.class_conv = nn.Conv2d(192, n_classes, 1)
-
-    def forward(self, x):
-        x_drop = F.dropout(x, .2)
-        conv1_out = F.relu(self.conv1(x_drop))
-        conv2_out = F.relu(self.conv2(conv1_out))
-        conv3_out = F.relu(self.conv3(conv2_out))
-        conv3_out_drop = F.dropout(conv3_out, .5)
-        conv4_out = F.relu(self.conv4(conv3_out_drop))
-        conv5_out = F.relu(self.conv5(conv4_out))
-        conv6_out = F.relu(self.conv6(conv5_out))
-        conv6_out_drop = F.dropout(conv6_out, .5)
-        conv7_out = F.relu(self.conv7(conv6_out_drop))
-        conv8_out = F.relu(self.conv8(conv7_out))
-
-        class_out = F.relu(self.class_conv(conv8_out))
-        pool_out = F.adaptive_avg_pool2d(class_out, 1)
-        pool_out.squeeze_(-1)
-        pool_out.squeeze_(-1)
-        return pool_out
 '''

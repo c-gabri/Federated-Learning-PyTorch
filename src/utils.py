@@ -3,52 +3,32 @@
 # Python version: 3.8.10
 
 
-import copy
+from copy import deepcopy
+import io
+from contextlib import redirect_stdout
+
 import torch
-from torch import nn
+from torch.nn import CrossEntropyLoss
 from torchinfo import summary
-from math import ceil
-import numpy as np
-import matplotlib.pyplot as plt
 
 
-def update_plot(p, new_xdata, new_ydata):
-        p.set_xdata(np.append(p.get_xdata(), new_xdata))
-        p.set_ydata(np.append(p.get_ydata(), new_ydata))
-        p.axes.relim()
-        p.axes.autoscale_view()
-        plt.draw()
-        plt.pause(0.001)
+class Scheduler():
+    def __str__(self):
+        sched_str = '%s (\n' % self.name
+        for key in vars(self).keys():
+            if key != 'name':
+                value = vars(self)[key]
+                if key == 'optimizer': value = str(value).replace('\n', '\n        ').replace('    )', ')')
+                sched_str +=  '    %s: %s\n' % (key, value)
+        sched_str += ')'
+        return sched_str
 
-def get_dataset_mean_std(dataset):
-    loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, num_workers=0)
-    examples, lebels = next(iter(loader))
-    mean, std = examples.mean([0,2,3]), examples.std([0,2,3]) # shape of examples = [b,c,w,h]
-
-    return mean, std
-
-def conv_out_size(s_in, kernel_size, padding, stride):
-    if padding == 'same':
-        s_out = (ceil(s_in[0]/stride[0]), ceil(s_in[1]/stride[1]))
-        padding_h = max((s_out[0] - 1)*stride[0] + kernel_size[0] - s_in[0], 0)
-        padding_w = max((s_out[1] - 1)*stride[1] + kernel_size[1] - s_in[1], 0)
-        padding_l = padding_w//2
-        padding_r = padding_w - padding_l
-        padding_t = padding_h//2
-        padding_b = padding_h - padding_t
-        return s_out, (padding_l, padding_r, padding_t, padding_b)
-
-    h_out = int((s_in[0] - kernel_size[0] + padding[2] + padding[3])/stride[0] + 1)
-    w_out = int((s_in[1] - kernel_size[1] + padding[0] + padding[1])/stride[1] + 1)
-
-    return (h_out, w_out), padding
 
 def average_updates(w, n_k):
     """
-    Returns the average of the updates.
+    Returns the average of the updates
     """
-
-    w_avg = copy.deepcopy(w[0])
+    w_avg = deepcopy(w[0])
     for key in w_avg.keys():
         w_avg[key] = torch.mul(w_avg[key], n_k[0])
         for i in range(1, len(w)):
@@ -56,10 +36,43 @@ def average_updates(w, n_k):
         w_avg[key] = torch.div(w_avg[key], sum(n_k))
     return w_avg
 
-def exp_details(args, model, train_dataset, train_emds):
-    device = str(torch.cuda.get_device_properties(torch.cuda.current_device())) if args.gpu is not None else 'CPU'
-    summ = str(summary(model, (args.batch_size,)+tuple(train_dataset[0][0].shape), verbose=0))
-    summ = '    '+summ.replace('\n', '\n    ')
+def inference(model, loader, device):
+    """ Returns test accuracy and loss
+    """
+    if loader is None:
+        return torch.nan, torch.nan
+
+    criterion = CrossEntropyLoss().to(device) # TODO: use same criterion used during training?
+
+    model.eval()
+
+    # if (args.model == 'resnet'): # TODO: fix or remove
+    #     model = torch.quantization.convert(model)
+
+    loss, total, correct = 0., 0, 0
+
+    for batch, (examples, labels) in enumerate(loader):
+        examples, labels = examples.to(device), labels.to(device)
+
+        # Inference
+        log_probs = model(examples)
+        loss += criterion(log_probs, labels).item() * len(labels)
+
+        # Prediction
+        _, pred_labels = torch.max(log_probs, 1)
+        pred_labels = pred_labels.view(-1)
+        correct += torch.sum(torch.eq(pred_labels, labels)).item()
+        total += len(labels)
+
+    accuracy = correct/total
+    loss /= total
+
+    return accuracy, loss
+
+def exp_details(args, model, train_dataset, valid_dataset, test_dataset, emds, scheduler):
+    device = str(torch.cuda.get_device_properties(args.device)) if args.device != 'cpu' else 'CPU'
+    summ = str(summary(model, (args.train_bs,)+tuple(train_dataset[0][0].shape), depth=10, verbose=0, col_names=['output_size','kernel_size','num_params','mult_adds']))
+    summ = '            '+summ.replace('\n', '\n            ')
 
     if args.centralized:
         algo = 'Centralized'
@@ -77,67 +90,58 @@ def exp_details(args, model, train_dataset, train_emds):
         if args.fedprox_mu:
             algo = algo + ' + FedProx'
 
-    print('\nExperimental details:')
-    print('    General parameters:')
-    print(f'    Algorithm            : {algo}')
-    print(f'    Epochs               : {args.epochs}')
-    print(f'    Batch size           : {args.batch_size}')
-    print(f'    Optimizer            : {args.optimizer}')
-    print(f'    Learning rate        : {args.lr}')
-    print(f'    Momentum             : {args.momentum}')
-    print(f'    Dataset              : {args.dataset}')
-    print(f'    Device               : {device}')
-    print('')
+    f = io.StringIO()
+    with redirect_stdout(f):
+        print('Experiment summary:')
+        print('    General parameters:')
+        print(f'        Algorithm: {algo}')
+        print(f'        Epochs: {args.epochs}')
+        print(f'        Batch size: {args.train_bs}')
+        print(f'        Random seed: {args.seed}')
+        print()
 
-    if not args.centralized:
-        print('    Federated parameters:')
-        print(f'    Communication rounds : {args.rounds}')
-        print(f'    Clients              : {args.num_clients}')
-        print(f'    Fraction of clients  : {args.frac_clients}')
-        print(f'    Server learning rate : {args.server_lr}')
-        print(f'    Server momentum      : {args.server_momentum}')
-        print('    IID                  : %g (EMD: %.3g)' % (args.iid, train_emds[0]))
-        print('    Balance              : %g (EMD: %.3g)' % (args.balance, train_emds[1]))
-        print(f'    System heterogeneity : {args.hetero}')
-        #print(f'    FedIR                : {args.fedir}')
-        print(f'    FedVC client size    : {args.fedvc_nvc}')
-        print(f'    FedProx mu           : {args.fedprox_mu}')
-        print('')
+        if not args.centralized:
+            print('    Federated parameters:')
+            print(f'        Communication rounds: {args.rounds}')
+            print(f'        Clients: {args.num_clients}')
+            print(f'        Fraction of clients: {args.frac_clients}')
+            print(f'        Server learning rate: {args.server_lr}')
+            print(f'        Server momentum (FedAvgM): {args.server_momentum}')
+            print('        IID: %g (EMD: %.3g)' % (args.iid, emds['train']['class']))
+            print('        Balance: %g (EMD: %.3g)' % (args.balance, emds['train']['client']))
+            print(f'        System heterogeneity: {args.hetero}')
+            print(f'        FedIR: {args.fedir}')
+            print(f'        Virtual client size (FedVC): {args.fedvc_nvc}')
+            print(f'        Mu (FedProx): {args.fedprox_mu}')
+            print()
 
-    print('    Model:')
-    print(summ)
+        print('    Scheduler: %s' % (str(scheduler).replace('\n', '\n    ')))
+        print()
 
-    return
+        print('    Dataset:')
+        print('        Training:')
+        print('            ' + str(train_dataset).replace('\n','\n            '))
+        if valid_dataset is not None:
+            print('        Validation:')
+            print('            ' + str(valid_dataset).replace('\n','\n            '))
+        print('        Test:')
+        print('            ' + str(test_dataset).replace('\n','\n            '))
+        print()
 
+        print('    Model:')
+        print(f'        Device: {device}')
+        print(f'        Arguments: {args.model_args}')
+        print('        Architecture:')
+        print(summ)
 
-def create_combined_model(model_fe):
+    return f.getvalue()
 
-    num_ftrs = model_fe.fc.in_features
-
-    model_fe_features = nn.Sequential(
-        model_fe.quant,  # Quantize the input
-        model_fe.conv1,
-        model_fe.bn1,
-        model_fe.relu,
-        model_fe.maxpool,
-        model_fe.layer1,
-        model_fe.layer2,
-        model_fe.layer3,
-        model_fe.layer4,
-        model_fe.avgpool,
-        model_fe.dequant,  # Dequantize the output
-    )
-
-    # Step 2. Create a new "head"
-    new_head = nn.Sequential(
-        nn.Dropout(p=0.5),
-        nn.Linear(num_ftrs, 2),
-    )
-
-    # Step 3. Combine, and don't forget the quant stubs.
-    new_model = nn.Sequential(
-        model_fe_features,
-        nn.Flatten(1),
-        new_head,
-    )
-    return new_model
+'''
+def update_plot(p, new_xdata, new_ydata):
+        p.set_xdata(np.append(p.get_xdata(), new_xdata))
+        p.set_ydata(np.append(p.get_ydata(), new_ydata))
+        p.axes.relim()
+        p.axes.autoscale_view()
+        plt.draw()
+        plt.pause(0.001)
+'''

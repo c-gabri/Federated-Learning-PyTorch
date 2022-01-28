@@ -6,81 +6,86 @@
 import torch
 import numpy as np
 from torchvision import datasets, transforms
-import random
+#import random
 import matplotlib.pyplot as plt
 from scipy import stats
 
 
 # TODO: implement split w/o reimmission?
 
-def earthmover_distance(N_class_client):
-    N_class_client = N_class_client[~torch.all(N_class_client == 0, axis=1)]
-    N_client = N_class_client.sum(1, keepdims=True)
-    N = N_class_client.sum()
-    q = N_class_client / N_client
-    p = (N_class_client).sum(0, keepdims=True) / N
+def earthmover_distance(dist):
+    dist = dist[~torch.all(dist == 0, axis=1)]
+    N_client = dist.sum(1, keepdims=True)
+    N = dist.sum()
+    q = dist / N_client
+    p = (dist).sum(0, keepdims=True) / N
     emd = (torch.abs(q - p).sum(1, keepdims=True) * N_client).sum() / N
 
     return emd
 
-def get_split(dataset, q_class, q_client, alpha_class, alpha_client, type):
-    N = len(dataset)
-    K, C = q_class.shape
-    N_class_client = (q_class.mul(q_client.mul(N))).round().to(int)
-    emd_class = earthmover_distance(N_class_client)
-    emd_client = torch.abs(N_class_client.sum(1)/N_class_client.sum() - torch.tensor([1/K]*K)).sum()
+def get_split(dataset, q_class, q_client, iid, balance):
+    if dataset is None:
+        return None, None, None
 
-    y = torch.arange(K)
-    left = torch.zeros(K)
-    for c in range(C):
-        plt.barh(y, N_class_client[:,c], left=left, height=1)
-        left += N_class_client[:,c]
-    plt.xlim((0,max(left)))
-    plt.xlabel('Class distribution')
-    plt.ylabel('Client')
-    alpha_class_str = '∞' if alpha_class == float('inf') else '%g' % alpha_class
-    alpha_client_str = '∞' if alpha_client == float('inf') else '%g' % alpha_client
-    plt.title('$α_{class} = %s, α_{client} = $%s' % (alpha_class_str, alpha_client_str))
-    plt.tight_layout()
-    plt.savefig('../save/distribution_%s.png' % type)
-    #plt.show()
+    num_clients, num_classes = q_class.shape
+    dist = (q_class.mul(q_client.mul(len(dataset)))).round().to(int)
+
+    emd = {}
+    emd['class'] = earthmover_distance(dist)
+    emd['client'] = torch.abs(dist.sum(1)/dist.sum() - torch.tensor([1/num_clients]*num_clients)).sum()
 
     split = {}
-    for c in range(C):
+    for c in range(num_classes):
         idxs_class = (np.array(dataset.targets) == c).nonzero()[0]
-        for k in range(K):
+        for k in range(num_clients):
             if c == 0: split[k] = []
-            split[k] += list(np.random.choice(idxs_class, N_class_client[k,c].item(), replace=True))
+            split[k] += list(np.random.choice(idxs_class, dist[k,c].item(), replace=True))
 
-    return split, (emd_class, emd_client)
+    return split, emd, dist
 
-def get_splits(train_dataset, test_dataset, K, alpha_class, alpha_client):
-    C = len(train_dataset.classes)
+def get_splits(datasets, num_clients, iid, balance):
+    num_classes = len(datasets['train'].classes)
 
-    if alpha_class == 0:
-        q_class = torch.zeros((K,C))
-        for k in range(K):
-            q_class[k,np.random.randint(low=0, high=C)] = 1
-    elif alpha_class == float('inf'):
-        q_class = torch.ones((K,C)).divide(C)
+    if iid == 0:
+        q_class = torch.zeros((num_clients, num_classes))
+        for k in range(num_clients):
+            q_class[k, np.random.randint(low=0, high=num_classes)] = 1
+    elif iid == float('inf'):
+        q_class = torch.ones((num_clients, num_classes)).divide(num_classes)
     else:
-        p_class = torch.ones(C).divide(C)
-        q_class = torch.distributions.dirichlet.Dirichlet(alpha_class*p_class).sample((K,))
+        p_class = torch.ones(num_classes).divide(num_classes)
+        q_class = torch.distributions.dirichlet.Dirichlet(iid*p_class).sample((num_clients,))
 
-    if alpha_client == 0:
-        q_client = torch.zeros(K).reshape((K,1))
-        q_client[np.random.randint(low=0, high=K)] = 1
-    elif alpha_client == float('inf'):
-        q_client = (torch.ones(K).divide(K)).reshape((K,1))
+    if balance == 0:
+        q_client = torch.zeros(num_clients).reshape((num_clients,1))
+        q_client[np.random.randint(low=0, high=num_clients)] = 1
+    elif balance == float('inf'):
+        q_client = (torch.ones(num_clients).divide(num_clients)).reshape((num_clients,1))
     else:
-        p_client = torch.ones(K).divide(K)
-        q_client = torch.distributions.dirichlet.Dirichlet(alpha_client*p_client).sample().reshape((K,1))
+        p_client = torch.ones(num_clients).divide(num_clients)
+        q_client = torch.distributions.dirichlet.Dirichlet(balance*p_client).sample().reshape((num_clients,1))
 
-    train_split, train_emds = get_split(train_dataset, q_class, q_client, alpha_class, alpha_client, 'train')
-    test_split, test_emds = get_split(test_dataset, q_class, q_client, alpha_class, alpha_client, 'test')
+    splits, emds, dists = {}, {}, {}
+    for key in datasets.keys():
+        split, emd, dist = get_split(datasets[key], q_class, q_client, iid, balance)
+        splits[key] = split
+        emds[key] = emd
+        dists[key] = dist
 
-    return train_split, test_split, train_emds, test_emds
+    return splits, emds, dists
 
+def get_split_iid_balanced(dataset, num_clients):
+    num_examples = int(len(dataset)/num_clients)
+    idxs = set(range(len(dataset)))
+    split = {}
+    for i in range(num_clients):
+        split[i] = list(np.random.choice(idxs, num_examples, replace=False))
+        idxs = idxs - set(split[i])
+    return split
+
+
+
+'''
 def mnist_iid(dataset, num_clients):
     """
     Sample I.I.D. client data from MNIST dataset
@@ -412,3 +417,4 @@ if __name__ == '__main__':
                                    ]))
     num = 100
     d = mnist_noniid(dataset_train, num)
+'''
