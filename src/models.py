@@ -8,12 +8,13 @@ from torch import nn
 import torchvision.models as tvmodels
 
 from ghostnet import ghostnet as load_ghostnet
+from tinynet import tinynet as load_tinynet
 from models_utils import *
 
 
 class mlp_mnist(nn.Module):
-    input_channels = 1
-    input_resize = (28, 28)
+    num_channels = 1
+    resize = (28, 28)
 
     def __init__(self, dataset, model_args):
         super(mlp_mnist, self).__init__()
@@ -33,8 +34,8 @@ class mlp_mnist(nn.Module):
         return x
 
 class cnn_mnist(nn.Module):
-    input_channels = 1
-    input_resize = (28, 28)
+    num_channels = 1
+    resize = (28, 28)
 
     def __init__(self, dataset, model_args):
         super(cnn_mnist, self).__init__()
@@ -55,8 +56,8 @@ class cnn_mnist(nn.Module):
         return x
 
 class cnn_cifar10(nn.Module):
-    input_channels = 3
-    input_resize = (24, 24)
+    num_channels = 3
+    resize = (24, 24)
 
     def __init__(self, dataset, model_args):
         super(cnn_cifar10, self).__init__()
@@ -81,53 +82,12 @@ class cnn_cifar10(nn.Module):
         x = self.fc3(x)
         return x
 
-class lenet5(nn.Module):
-    input_channels = 3
-    input_resize = (32, 32)
-
-    def __init__(self, dataset, model_args):
-        super(lenet5, self).__init__()
-
-        if 'norm' not in model_args or model_args['norm'] == 'batch':
-            norm2d = nn.BatchNorm2d
-            norm1d = nn.BatchNorm1d
-        #elif model_args['norm'] == 'group': # TODO: implement
-        #    norm2d =
-        #    norm1d =
-        elif model_args['norm'] == None:
-            norm2d = nn.Identity
-            norm1d = nn.Identity
-        else:
-            raise ValueError("Unsupported norm '%s' for LeNet5")
-
-        self.feature_extractor = nn.Sequential(
-            nn.Conv2d(3, 64, 5),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            norm2d(64),
-            nn.Conv2d(64, 64, 5),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            norm2d(64))
-
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(64*5*5, 384),
-            nn.ReLU(),
-            norm1d(384),
-            nn.Linear(384, 192))
-
-    def forward(self, x):
-        x = self.feature_extractor(x)
-        x = self.classifier(x)
-        return x
-
 class lenet5_orig(nn.Module):
     """This implementation follows closely the paper:
     "Gradient-Based Learning Applied to Document Recognition", by LeCun et al.
     """
-    input_channels = 1
-    input_resize = (32, 32)
+    num_channels = 1
+    resize = (32, 32)
 
     def __init__(self, dataset, model_args):
         super(lenet5_orig, self).__init__()
@@ -212,9 +172,98 @@ class lenet5_orig(nn.Module):
 
         return x
 
+class lenet5(nn.Module):
+    num_channels = 3
+    resize = (32, 32)
+
+    def __init__(self, dataset, model_args):
+        super(lenet5, self).__init__()
+
+        if 'norm' not in model_args or model_args['norm'] == 'batch':
+            norm2d = nn.BatchNorm2d
+            norm1d = nn.BatchNorm1d
+        #elif model_args['norm'] == 'group': # TODO: implement
+        #    norm2d =
+        #    norm1d =
+        elif model_args['norm'] == None:
+            norm2d = nn.Identity
+            norm1d = nn.Identity
+        else:
+            raise ValueError("Unsupported norm '%s' for LeNet5")
+
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(3, 64, 5),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            norm2d(64),
+            nn.Conv2d(64, 64, 5),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            norm2d(64))
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64*5*5, 384),
+            nn.ReLU(),
+            norm1d(384),
+            nn.Linear(384, 192),
+            nn.ReLU(),
+            norm1d(192),
+            nn.Linear(192, len(dataset.classes)))
+
+    def forward(self, x):
+        x = self.feature_extractor(x)
+        x = self.classifier(x)
+        return x
+
+class ghost_lenet5(nn.Module):
+    num_channels = 3
+    resize = (32, 32)
+
+    def __init__(self, dataset, model_args):
+        super(ghost_lenet5, self).__init__()
+
+        if 'norm' not in model_args or model_args['norm'] == 'batch':
+            norm2d = nn.BatchNorm2d
+            norm1d = nn.BatchNorm1d
+        #elif model_args['norm'] == 'group': # TODO: implement
+        #    norm2d =
+        #    norm1d =
+        elif model_args['norm'] == None:
+            norm2d = nn.Identity
+            norm1d = nn.Identity
+        else:
+            raise ValueError("Unsupported norm '%s' for LeNet5")
+
+        self.feature_extractor = nn.Sequential(
+            #nn.Conv2d(3, 64, 5),
+            #nn.ReLU(),
+            GhostModule(3, 64, 5),
+            nn.MaxPool2d(2),
+            #norm2d(64),
+            #nn.Conv2d(64, 64, 5),
+            #nn.ReLU(),
+            GhostModule(64, 64, 5),
+            nn.MaxPool2d(2),)
+            #norm2d(64))
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64*5*5, 384),
+            nn.ReLU(),
+            norm1d(384),
+            nn.Linear(384, 192),
+            nn.ReLU(),
+            norm1d(192),
+            nn.Linear(192, len(dataset.classes)))
+
+    def forward(self, x):
+        x = self.feature_extractor(x)
+        x = self.classifier(x)
+        return x
+
 class mnasnet(nn.Module):
-    input_channels = 3
-    input_resize = 224
+    num_channels = 3
 
     def __init__(self, dataset, model_args):
         super(mnasnet, self).__init__()
@@ -249,8 +298,8 @@ class mnasnet(nn.Module):
         return x
 
 class ghostnet(nn.Module):
-    input_channels = 3
-    input_resize = 224
+    num_channels = 3
+    resize = 224
 
     def __init__(self, dataset, model_args):
         super(ghostnet, self).__init__()
@@ -263,7 +312,7 @@ class ghostnet(nn.Module):
             if width != 1:
                 raise ValueError('Unsupported width for pretrained GhostNet: %s' % width)
             self.model = load_ghostnet(width=1, dropout=dropout)
-            self.model.load_state_dict(torch.load('src/ghostnet_state_dict.pth'), strict=True)
+            self.model.load_state_dict(torch.load('models/ghostnet.pth'), strict=True)
 
             if freeze:
                 for param in self.model.parameters():
@@ -278,22 +327,61 @@ class ghostnet(nn.Module):
         x = self.model(x)
         return x
 
+class tinynet(nn.Module):
+    num_channels = 3
+    variants = {'a': (0.86, 1.0, 1.2),
+                'b': (0.84, 0.75, 1.1),
+                'c': (0.825, 0.54, 0.85),
+                'd': (0.68, 0.54, 0.695),
+                'e': (0.475, 0.51, 0.60)}
+
+    def __init__(self, dataset, model_args):
+        super(tinynet, self).__init__()
+
+        pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
+        freeze = model_args['freeze'] if 'freeze' in model_args else False
+        r = model_args['r'] if 'r' in model_args else tinynet.variants['a'][0]
+        w = model_args['w'] if 'w' in model_args else tinynet.variants['a'][1]
+        d = model_args['d'] if 'd' in model_args else tinynet.variants['a'][2]
+        if 'variant' in model_args:
+            variant = model_args['variant']
+            if variant not in tinynet.variants:
+                raise ValueError(f'Non existent variant for TinyNet: {variant}')
+            r, w, d = tinynet.variants[variant]
+        else:
+            variant = None
+            for key in tinynet.variants:
+                if (r, w, d) == tinynet.variants[key]:
+                    variant = key
+                    break
+
+        self.model = load_tinynet(r=r, w=w, d=d)
+
+        if pretrained:
+            if variant is None:
+                raise ValueError(f'Unsupported r, w, d for pretrained TinyNet: {r}, {w}, {d}')
+            self.model.load_state_dict(torch.load(f'models/tinynet_{variant}.pth'), strict=True)
+
+            if freeze:
+                for param in self.model.parameters():
+                    param.requires_grad = False
+
+        self.model.classifier = nn.Linear(self.model.classifier.in_features, len(dataset.classes))
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
 class mobilenet_v3(nn.Module):
-    input_channels = 3
-    input_resize = 224
+    num_channels = 3
 
     def __init__(self, dataset, model_args):
         super(mobilenet_v3, self).__init__()
-        width = model_args['width'] if 'width' in model_args else 'large'
+        variant = model_args['variant'] if 'variant' in model_args else 'small'
         pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
         freeze = model_args['freeze'] if 'freeze' in model_args else False
 
-        if width == 'large':
-            self.model = tvmodels.mobilenet_v3_large(pretrained=pretrained)
-        elif width == 'small':
-            self.model = tvmodels.mobilenet_v3_small(pretrained=pretrained)
-        else:
-            raise ValueError('Unsupported width for MobileNetV3: %s' % width)
+        self.model = getattr(tvmodels, f'mobilenet_v3_{variant}')(pretrained=pretrained)
 
         if pretrained:
             if freeze:
@@ -302,6 +390,28 @@ class mobilenet_v3(nn.Module):
 
         self.model.classifier[0] = nn.Linear(self.model.classifier[0].in_features, self.model.classifier[0].out_features)
         self.model.classifier[3] = nn.Linear(self.model.classifier[3].in_features, len(dataset.classes))
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+class efficientnet(nn.Module):
+    num_channels = 3
+
+    def __init__(self, dataset, model_args):
+        super(efficientnet, self).__init__()
+        variant = model_args['variant'] if 'variant' in model_args else 'b0'
+        pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
+        freeze = model_args['freeze'] if 'freeze' in model_args else False
+
+        self.model = getattr(tvmodels, f'efficientnet_{variant}')(pretrained=pretrained)
+
+        if pretrained:
+            if freeze:
+                for param in self.model.parameters():
+                    param.requires_grad = False
+
+        self.model.classifier[1] = nn.Linear(self.model.classifier[1].in_features, len(dataset.classes))
 
     def forward(self, x):
         x = self.model(x)

@@ -35,19 +35,19 @@ if __name__ == '__main__':
     # Load datasets, splits and dataloaders
     datasets = getattr(datasets, args.dataset)(args)
 
-    splits, emds, dists = get_splits(datasets, args.num_clients, args.iid, args.balance)
+    splits, emds, dists = get_splits(datasets, args.num_clients, args.iid, args.balance, args.no_replace)
 
     loaders = {}
-    #loaders['train'] = DataLoader(datasets['train'], batch_size=args.train_bs, shuffle=True)
-    #loaders['valid'] = DataLoader(datasets['valid'], batch_size=args.test_bs, shuffle=False)
-    #loaders['test'] = DataLoader(datasets['test'], batch_size=args.test_bs, shuffle=False)
-    for type in splits.keys():
-        idxs = []
-        for client_id in splits[type].keys():
-            idxs += splits[type][client_id]
-        batch_size = args.train_bs if type == 'train' else args.test_bs
-        shuffle = True if type == 'train' else False
-        loaders[type] = DataLoader(Subset(datasets[type], idxs), batch_size=batch_size, shuffle=shuffle)
+    for type in splits:
+        if splits[type] is not None:
+            idxs = []
+            for client_id in splits[type]:
+                idxs += splits[type][client_id]
+            batch_size = args.train_bs if type == 'train' else args.test_bs
+            shuffle = True if type == 'train' else False
+            loaders[type] = DataLoader(Subset(datasets[type], idxs), batch_size=batch_size, shuffle=shuffle)
+        else:
+            loaders[type] = None
 
     # Get original and transformed examples
     images_fig = get_images_fig(datasets, args.train_bs)
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     print(f'    Total time: {timedelta(seconds=int(time()-start_time))}')
 
     if logger is not None:
-        logger.add_scalar(f'Average test accuracy', test_acc_avg, round+1)
-        logger.add_scalar(f'Test accuracy', test_acc, round+1)
+        logger.add_scalar('Average test accuracy', test_acc_avg, args.rounds)
+        logger.add_scalar('Test accuracy', test_acc, args.rounds)
 
     logger.close()

@@ -9,18 +9,17 @@ from datasets_utils import get_datasets
 
 
 def cifar10(args):
-    train_transforms = [
-        tvtransforms.RandomCrop(24),
-        tvtransforms.RandomHorizontalFlip(),
-        tvtransforms.ColorJitter(brightness=(0.5,1.5), contrast=(0.5,1.5)),
-    ]
-    test_transforms = [
-        tvtransforms.CenterCrop(24)
-    ]
-
-    #train_transforms = []
-    #test_transforms = []
-
+    if args.augment:
+        train_transforms = [
+            tvtransforms.RandomCrop(24),
+            tvtransforms.RandomHorizontalFlip(),
+            tvtransforms.ColorJitter(brightness=(0.5,1.5), contrast=(0.5,1.5)),
+        ]
+        test_transforms = [
+            tvtransforms.CenterCrop(24)
+        ]
+    else:
+        train_transforms, test_transforms = [], []
 
     return get_datasets(name='CIFAR10', train_transforms=train_transforms, test_transforms=test_transforms, args=args)
 

@@ -20,10 +20,14 @@ def args_parser():
     args_setting = parser.add_argument_group('federated setting arguments')
     args_setting.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction) if f[1].__module__ == 'datasets'],
                         help="dataset name")
+    args_setting.add_argument('--augment', action='store_true', default=False,
+                        help="augment dataset")
     args_setting.add_argument('--iid', type=float, default='inf',
                         help="identicalness of class distributions")
     args_setting.add_argument('--balance', type=float, default='inf',
                         help="client balance")
+    args_setting.add_argument('--no_replace', action='store_true', default=False,
+                        help="try to split the dataset without replacement")
     args_setting.add_argument('--hetero', type=float, default=0,
                         help="system heterogeneity")
 
@@ -60,7 +64,7 @@ def args_parser():
     args_optim_sched = parser.add_argument_group('optimizer and scheduler arguments')
     args_optim_sched.add_argument('--optim', type=str, default='sgd', choices=[f[0] for f in getmembers(optimizers, isfunction)],
                         help="optimizer name")
-    args_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01,momentum=0.9,weight_decay=4e-4',
+    args_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01',
                         help="optimizer arguments")
     args_optim_sched.add_argument('--sched', type=str, default='fixed', choices=[c[0] for c in getmembers(schedulers, isclass) if c[1].__module__ == 'schedulers'],
                         help="scheduler name")
@@ -69,7 +73,7 @@ def args_parser():
 
     # Model
     args_model = parser.add_argument_group('model arguments')
-    args_model.add_argument('--model', type=str, default='lenet5', choices=[c[0] for c in getmembers(models, isclass) if c[1].__module__ == 'models'],
+    args_model.add_argument('--model', type=str, default='ghostnet', choices=[c[0] for c in getmembers(models, isclass) if c[1].__module__ == 'models'],
                         help="model name")
     args_model.add_argument('--model_args', type=str, default=None,
                         help="model arguments")
@@ -80,12 +84,10 @@ def args_parser():
     args_output = parser.add_argument_group('output arguments')
     args_output.add_argument('--quiet', '-q', action='store_true', default=False,
                         help="less verbose output")
-    args_output.add_argument('--print_every', type=int, default=0,
-                        help="print stats every specified number of batches")
-    args_output.add_argument('--valid_every', type=int, default=0,
-                        help="validate every specified number of batches")
-    #args_output.add_argument('--epoch_print_interval', type=int, default=1,
-    #                    help="print stats every specified number of epochs")
+    args_output.add_argument('--loss_every', type=int, default=0,
+                        help="print and log average loss every specified number of batches")
+    args_output.add_argument('--acc_every', type=int, default=0,
+                        help="print and log accuracies every specified number of batches")
     args_output.add_argument('--log_dir', type=str, default=None,
                         help="custom tensorboard log directory")
     args_output.add_argument('--no_log', action='store_true', default=False,
@@ -121,6 +123,7 @@ def args_parser():
         args.hetero = 0
         args.iid = float('inf')
         args.balance = float('inf')
+        args.no_replace = True
         args.fedvc_nvc = 0
         args.fedir = False
         args.fedprox_mu = 0

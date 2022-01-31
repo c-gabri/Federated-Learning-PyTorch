@@ -78,16 +78,24 @@ class Client(object):
         else:
             train_loader = self.loaders['train']
 
-        print_every = self.args.print_every if self.args.print_every> 0 else len(train_loader)
-        valid_every = self.args.valid_every if self.args.valid_every> 0 else len(train_loader)
+        loss_every = self.args.loss_every if self.args.loss_every > 0 else len(train_loader)
+        acc_every = self.args.acc_every if self.args.acc_every > 0 else len(train_loader)
+
+        # Log initial values
+        if logger is not None:
+            train_acc, _ = self.inference(model, type='train', device=device)
+            valid_acc, _ = self.inference(model, type='valid', device=device)
+            test_acc, _ = self.inference(model, type='test', device=device)
+            logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, 0)
+            logger.add_scalar(f'Client {self.id}: Average loss', torch.nan, 0)
+            logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
 
         # Train model
-        model_old = deepcopy(model)
         model.train()
+        model_old = deepcopy(model)
+        loss_total, num_examples = 0., 0
 
         for epoch in range(epochs):
-            loss_total, num_examples = 0., 0
-
             for batch, (examples, labels) in enumerate(train_loader):
                 examples, labels = examples.to(device), labels.to(device)
                 model.zero_grad()
@@ -107,37 +115,47 @@ class Client(object):
                 loss.backward()
                 optimizer.step()
 
-                # Compute accuracies every valid_every batches
-                if (batch + 1) % valid_every == 0:
-                    train_acc, _ = self.inference(model, type='train', device=device)
-                    valid_acc, _ = self.inference(model, type='valid', device=device)
-                else:
-                    train_acc, valid_acc = torch.nan, torch.nan
+                if (batch + 1) % loss_every == 0 or (batch + 1) % acc_every == 0:
+                    if not self.args.quiet:
+                        print('    ' + f'Round: {round+1}/{self.args.rounds} | '\
+                                       f'Client: {self.id} ({i+1}/{m}) | '\
+                                       f'Epoch: {epoch+1}/{epochs} | '\
+                                       f'Batch: {batch+1}/{len(train_loader)} (Example: {num_examples}/{len(train_loader.dataset)}) | '\
+                                       f'Loss: {loss.item():.6f}', end='')
 
-                # Print and log stats every print_every batches
-                if not self.args.quiet and (batch + 1) % print_every == 0:
-                    print('    ' + f'Round: {round+1}/{self.args.rounds} | '\
-                                   f'Client: {self.id} ({i+1}/{m}) | '\
-                                   f'Epoch: {epoch+1}/{epochs} | '\
-                                   f'Batch: {batch+1}/{len(train_loader)} (Example: {num_examples}/{len(train_loader.dataset)}) | '\
-                                   f'Batch loss: {loss.item():.6f}, Running loss: {loss_total/num_examples:.6f}, '\
-                                   f'Training accuracy: {train_acc:.3%}, Validation accuracy: {valid_acc:.3%}')
+                     # Print and log average loss every loss_every batches
+                    if (batch + 1) % loss_every == 0:
+                        loss_avg = loss_total/num_examples
+                        loss_total, num_examples = 0., 0
+                        if not self.args.quiet:
+                            print(f', Average loss: {loss_avg:.6f}', end='')
+                        if logger is not None:
+                            logger.add_scalar(f'Client {self.id}: Average loss', loss_avg, self.iter+1)
 
-                    if logger is not None:
-                        logger.add_scalar(f'Client {self.id}: Training loss', loss_total/num_examples, self.iter+1)
-                        logger.add_scalars(f'Client {self.id}: Learning rate', {'Parameter group %d' % (i+1): optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter+1)
-                        logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc}, self.iter+1)
+                    # Print and log accuracies every acc_every batches
+                    if (batch + 1) % acc_every == 0:
+                        train_acc, _ = self.inference(model, type='train', device=device)
+                        valid_acc, _ = self.inference(model, type='valid', device=device)
+                        test_acc, _ = self.inference(model, type='test', device=device)
+                        if not self.args.quiet:
+                            print(f', Training accuracy: {train_acc:.3%}, Validation accuracy: {valid_acc:.3%}, Test accuracy: {test_acc:.3%}', end='')
+                        if logger is not None:
+                            logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, self.iter+1)
+
+                    if not self.args.quiet: print()
 
                 self.iter += 1
 
-            scheduler.step()
+            if logger is not None:
+                logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
+            scheduler.step() # TODO: do it at every batch for more flexibility?
 
         # Compute model update
         model_update = deepcopy(model_old.state_dict())
         for key in model_update.keys():
             model_update[key] = torch.sub(model_update[key], model.state_dict()[key])
 
-        return model_update, num_examples, loss_total/num_examples
+        return model_update, num_examples, loss_avg
 
     def inference(self, model, type, device):
         return inference(model, self.loaders[type], device)

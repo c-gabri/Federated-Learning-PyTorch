@@ -42,27 +42,25 @@ def inference(model, loader, device):
     if loader is None:
         return torch.nan, torch.nan
 
-    criterion = CrossEntropyLoss().to(device) # TODO: use same criterion used during training?
-
-    model.eval()
-
     # if (args.model == 'resnet'): # TODO: fix or remove
     #     model = torch.quantization.convert(model)
 
+    criterion = CrossEntropyLoss().to(device) # TODO: use same criterion used during training?
     loss, total, correct = 0., 0, 0
+    model.eval()
+    with torch.no_grad():
+        for batch, (examples, labels) in enumerate(loader):
+            examples, labels = examples.to(device), labels.to(device)
 
-    for batch, (examples, labels) in enumerate(loader):
-        examples, labels = examples.to(device), labels.to(device)
+            # Inference
+            log_probs = model(examples)
+            loss += criterion(log_probs, labels).item() * len(labels)
 
-        # Inference
-        log_probs = model(examples)
-        loss += criterion(log_probs, labels).item() * len(labels)
-
-        # Prediction
-        _, pred_labels = torch.max(log_probs, 1)
-        pred_labels = pred_labels.view(-1)
-        correct += torch.sum(torch.eq(pred_labels, labels)).item()
-        total += len(labels)
+            # Prediction
+            _, pred_labels = torch.max(log_probs, 1)
+            pred_labels = pred_labels.view(-1)
+            correct += torch.sum(torch.eq(pred_labels, labels)).item()
+            total += len(labels)
 
     accuracy = correct/total
     loss /= total
@@ -96,7 +94,8 @@ def exp_details(args, model, train_dataset, valid_dataset, test_dataset, emds, s
         print('    General parameters:')
         print(f'        Algorithm: {algo}')
         print(f'        Epochs: {args.epochs}')
-        print(f'        Batch size: {args.train_bs}')
+        print(f'        Training batch size: {args.train_bs}')
+        print(f'        Test batch size: {args.test_bs}')
         print(f'        Random seed: {args.seed}')
         print()
 

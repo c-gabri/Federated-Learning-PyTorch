@@ -55,9 +55,9 @@ class SqueezeExcite(nn.Module):
         x_se = self.act1(x_se)
         x_se = self.conv_expand(x_se)
         x = x * self.gate_fn(x_se)
-        return x    
+        return x
 
-    
+
 class ConvBnAct(nn.Module):
     def __init__(self, in_chs, out_chs, kernel_size,
                  stride=1, act_layer=nn.ReLU):
@@ -126,7 +126,7 @@ class GhostBottleneck(nn.Module):
 
         # Point-wise linear projection
         self.ghost2 = GhostModule(mid_chs, out_chs, relu=False)
-        
+
         # shortcut
         if (in_chs == out_chs and self.stride == 1):
             self.shortcut = nn.Sequential()
@@ -157,7 +157,7 @@ class GhostBottleneck(nn.Module):
 
         # 2nd ghost bottleneck
         x = self.ghost2(x)
-        
+
         x += self.shortcut(residual)
         return x
 
@@ -192,8 +192,8 @@ class GhostNet(nn.Module):
         output_channel = _make_divisible(exp_size * width, 4)
         stages.append(nn.Sequential(ConvBnAct(input_channel, output_channel, 1)))
         input_channel = output_channel
-        
-        self.blocks = nn.Sequential(*stages)        
+
+        self.blocks = nn.Sequential(*stages)
 
         # building last several layers
         output_channel = 1280
@@ -222,7 +222,7 @@ def ghostnet(**kwargs):
     Constructs a GhostNet model
     """
     cfgs = [
-        # k, t, c, SE, s 
+        # k, t, c, SE, s
         # stage1
         [[3,  16,  16, 0, 1]],
         # stage2
