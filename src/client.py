@@ -132,6 +132,9 @@ class Client(object):
                         if logger is not None:
                             logger.add_scalar(f'Client {self.id}: Average loss', loss_avg, self.iter+1)
 
+                        if scheduler.name == 'ReduceLROnPlateau':
+                            scheduler.step(loss_avg)
+
                     # Print and log accuracies every acc_every batches
                     if (batch + 1) % acc_every == 0:
                         train_acc, _ = self.inference(model, type='train', device=device)
@@ -148,14 +151,15 @@ class Client(object):
 
             if logger is not None:
                 logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
-            scheduler.step() # TODO: do it at every batch for more flexibility?
+            if scheduler.name != 'ReduceLROnPlateau':
+                scheduler.step() # TODO: do it at every batch for more flexibility?
 
         # Compute model update
         model_update = deepcopy(model_old.state_dict())
         for key in model_update.keys():
             model_update[key] = torch.sub(model_update[key], model.state_dict()[key])
 
-        return model_update, num_examples, loss_avg
+        return model_update, len(train_loader.dataset), loss_avg
 
     def inference(self, model, type, device):
         return inference(model, self.loaders[type], device)

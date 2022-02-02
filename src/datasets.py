@@ -9,7 +9,9 @@ from datasets_utils import get_datasets
 
 
 def cifar10(args):
-    if args.augment:
+    if args.no_augment:
+        train_transforms, test_transforms = [], []
+    else:
         train_transforms = [
             tvtransforms.RandomCrop(24),
             tvtransforms.RandomHorizontalFlip(),
@@ -18,8 +20,6 @@ def cifar10(args):
         test_transforms = [
             tvtransforms.CenterCrop(24)
         ]
-    else:
-        train_transforms, test_transforms = [], []
 
     return get_datasets(name='CIFAR10', train_transforms=train_transforms, test_transforms=test_transforms, args=args)
 

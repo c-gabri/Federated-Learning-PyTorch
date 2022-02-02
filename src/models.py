@@ -61,25 +61,32 @@ class cnn_cifar10(nn.Module):
 
     def __init__(self, dataset, model_args):
         super(cnn_cifar10, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding='same')
-        self.conv2 = nn.Conv2d(64, 64, kernel_size=5, stride=1, padding='same')
-        self.relu = nn.ReLU()
-        self.pool_pad = nn.ZeroPad2d((0, 1, 0, 1)) # Equivalent of TensorFlow padding 'SAME'
-        self.pool1 = nn.MaxPool2d(3, stride=2, padding=0)
-        self.pool2 = nn.MaxPool2d(3, stride=2, padding=0)
-        self.norm = nn.LocalResponseNorm(4, alpha=0.001/9)
-        self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(64*6*6, 384)
-        self.fc2 = nn.Linear(384, 192)
-        self.fc3 = nn.Linear(192, len(dataset.classes))
+
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=5, stride=1, padding='same'),
+            nn.ReLU(),
+            nn.ZeroPad2d((0, 1, 0, 1)), # Equivalent of TensorFlow padding 'SAME' for MaxPool2d
+            nn.MaxPool2d(3, stride=2, padding=0),
+            nn.LocalResponseNorm(4, alpha=0.001/9),
+            nn.Conv2d(64, 64, kernel_size=5, stride=1, padding='same'),
+            nn.ReLU(),
+            nn.LocalResponseNorm(4, alpha=0.001/9),
+            nn.ZeroPad2d((0, 1, 0, 1)), # Equivalent of TensorFlow padding 'SAME' for MaxPool2d
+            nn.MaxPool2d(3, stride=2, padding=0),
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64*6*6, 384),
+            nn.ReLU(),
+            nn.Linear(384, 192),
+            nn.ReLU(),
+            nn.Linear(192, len(dataset.classes)),
+        )
 
     def forward(self, x):
-        x = self.norm(self.pool1(self.pool_pad(self.relu(self.conv1(x)))))
-        x = self.pool2(self.pool_pad(self.norm(self.relu(self.conv2(x)))))
-        x = self.flatten(x)
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.feature_extractor(x)
+        x = self.classifier(x)
         return x
 
 class lenet5_orig(nn.Module):
@@ -174,87 +181,53 @@ class lenet5_orig(nn.Module):
 
 class lenet5(nn.Module):
     num_channels = 3
-    resize = (32, 32)
+    #resize = (32, 32)
+    resize = (24, 24)
 
     def __init__(self, dataset, model_args):
         super(lenet5, self).__init__()
 
         if 'norm' not in model_args or model_args['norm'] == 'batch':
-            norm2d = nn.BatchNorm2d
-            norm1d = nn.BatchNorm1d
-        #elif model_args['norm'] == 'group': # TODO: implement
-        #    norm2d =
-        #    norm1d =
+            norm1 = nn.BatchNorm2d(64)
+            norm2 = nn.BatchNorm2d(64)
+        elif model_args['norm'] == 'group':
+            # Group Normalization paper suggests 16 channels per group is bes
+            norm1 = nn.GroupNorm(64/16, 64)
+            norm2 = nn.GroupNorm(64/16, 64)
         elif model_args['norm'] == None:
-            norm2d = nn.Identity
-            norm1d = nn.Identity
+            norm1 = nn.Identity(64)
+            norm2 = nn.Identity(64)
         else:
             raise ValueError("Unsupported norm '%s' for LeNet5")
 
-        self.feature_extractor = nn.Sequential(
-            nn.Conv2d(3, 64, 5),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            norm2d(64),
-            nn.Conv2d(64, 64, 5),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            norm2d(64))
-
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(64*5*5, 384),
-            nn.ReLU(),
-            norm1d(384),
-            nn.Linear(384, 192),
-            nn.ReLU(),
-            norm1d(192),
-            nn.Linear(192, len(dataset.classes)))
-
-    def forward(self, x):
-        x = self.feature_extractor(x)
-        x = self.classifier(x)
-        return x
-
-class ghost_lenet5(nn.Module):
-    num_channels = 3
-    resize = (32, 32)
-
-    def __init__(self, dataset, model_args):
-        super(ghost_lenet5, self).__init__()
-
-        if 'norm' not in model_args or model_args['norm'] == 'batch':
-            norm2d = nn.BatchNorm2d
-            norm1d = nn.BatchNorm1d
-        #elif model_args['norm'] == 'group': # TODO: implement
-        #    norm2d =
-        #    norm1d =
-        elif model_args['norm'] == None:
-            norm2d = nn.Identity
-            norm1d = nn.Identity
+        if 'ghost' in model_args and model_args['ghost']:
+            block1 = GhostModule(3, 64, 5)
+            block2 = GhostModule(64, 64, 5)
         else:
-            raise ValueError("Unsupported norm '%s' for LeNet5")
+            block1 = nn.Sequential(
+                nn.Conv2d(3, 64, 5),
+                norm1,
+                nn.ReLU(),
+            )
+            block2 = nn.Sequential(
+                nn.Conv2d(64, 64, 5),
+                norm2,
+                nn.ReLU(),
+            )
 
         self.feature_extractor = nn.Sequential(
-            #nn.Conv2d(3, 64, 5),
-            #nn.ReLU(),
-            GhostModule(3, 64, 5),
+            block1,
             nn.MaxPool2d(2),
-            #norm2d(64),
-            #nn.Conv2d(64, 64, 5),
-            #nn.ReLU(),
-            GhostModule(64, 64, 5),
-            nn.MaxPool2d(2),)
-            #norm2d(64))
+            block2,
+            nn.MaxPool2d(2),
+        )
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(64*5*5, 384),
+            nn.Linear(64*3*3, 384), # 5*5 if input is 32x32
             nn.ReLU(),
-            norm1d(384),
             nn.Linear(384, 192),
             nn.ReLU(),
-            norm1d(192),
             nn.Linear(192, len(dataset.classes)))
 
     def forward(self, x):
@@ -299,7 +272,7 @@ class mnasnet(nn.Module):
 
 class ghostnet(nn.Module):
     num_channels = 3
-    resize = 224
+    #resize = 224
 
     def __init__(self, dataset, model_args):
         super(ghostnet, self).__init__()

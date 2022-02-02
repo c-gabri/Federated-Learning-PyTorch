@@ -20,8 +20,8 @@ def args_parser():
     args_setting = parser.add_argument_group('federated setting arguments')
     args_setting.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction) if f[1].__module__ == 'datasets'],
                         help="dataset name")
-    args_setting.add_argument('--augment', action='store_true', default=False,
-                        help="augment dataset")
+    args_setting.add_argument('--no_augment', action='store_true', default=False,
+                        help="don't augment dataset")
     args_setting.add_argument('--iid', type=float, default='inf',
                         help="identicalness of class distributions")
     args_setting.add_argument('--balance', type=float, default='inf',
@@ -41,7 +41,7 @@ def args_parser():
                         help="fraction of clients")
     args_algo.add_argument('--epochs', '-E', type=int, default=10,
                         help="number of epochs")
-    args_algo.add_argument('--train_bs', '-B', type=int, default=64,
+    args_algo.add_argument('--train_bs', '-B', type=int, default=50,
                         help="train batch size")
     args_algo.add_argument('--test_bs', type=int, default=128,
                         help="test batch size")

@@ -29,3 +29,8 @@ class const(lr_scheduler.ConstantLR, Scheduler):
     def __init__(self, optimizer, sched_args):
        super(const, self).__init__(optimizer, **sched_args)
        self.name = 'ConstantLR'
+
+class reduceonplateau(lr_scheduler.ReduceLROnPlateau, Scheduler):
+    def __init__(self, optimizer, sched_args):
+       super(reduceonplateau, self).__init__(optimizer, **sched_args)
+       self.name = 'ReduceLROnPlateau'

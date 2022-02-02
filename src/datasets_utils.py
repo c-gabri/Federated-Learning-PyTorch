@@ -68,6 +68,21 @@ def get_datasets(name, train_transforms, test_transforms, args):
     test_tvdataset = getattr(tvdatasets, name)(root=data_dir+name, train=False, download=False, transform=tvtransforms.ToTensor())
     model_class = getattr(models, args.model)
 
+    '''
+    # REMOVE: ONLY FOR TESTING
+    _, train_idxs = train_test_split(range(len(train_tvdataset)), test_size=int(len(train_tvdataset)/100), stratify=train_tvdataset.targets)
+    _, test_idxs = train_test_split(range(len(test_tvdataset)), test_size=int(len(test_tvdataset)/100), stratify=test_tvdataset.targets)
+    train_targets = np.array(train_tvdataset.targets)[train_idxs]
+    test_targets = np.array(test_tvdataset.targets)[test_idxs]
+    classes = train_tvdataset.classes
+    train_tvdataset = torch.utils.data.Subset(train_tvdataset, train_idxs)
+    test_tvdataset = torch.utils.data.Subset(test_tvdataset, test_idxs)
+    train_tvdataset.targets = train_targets
+    test_tvdataset.targets = test_targets
+    train_tvdataset.classes = classes
+    test_tvdataset.classes = classes
+    '''
+
     # RBG to grayscale or viceversa based on model number of channels
     num_channels = model_class.num_channels
     if train_tvdataset[0][0].shape[0] == 1 and num_channels == 3:
