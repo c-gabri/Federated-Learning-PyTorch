@@ -70,7 +70,8 @@ if __name__ == '__main__':
     #print('Client sampling probabilities: %s' % p_clients)
 
     # Load model
-    model = getattr(models, args.model)(datasets['train'], args.model_args).to(args.device)
+    num_classes = len(datasets['train'].classes)
+    model = getattr(models, args.model)(num_classes, args.model_args).to(args.device)
 
     # Print experiment details
     optimizer = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
@@ -96,8 +97,6 @@ if __name__ == '__main__':
     v = None
 
     for round in range(args.rounds):
-        #model.train()
-
         # Sample clients
         m = max(int(args.frac_clients * args.num_clients), 1)
         client_ids = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)

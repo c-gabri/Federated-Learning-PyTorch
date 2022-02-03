@@ -73,7 +73,7 @@ def args_parser():
 
     # Model
     args_model = parser.add_argument_group('model arguments')
-    args_model.add_argument('--model', type=str, default='ghostnet', choices=[c[0] for c in getmembers(models, isclass) if c[1].__module__ == 'models'],
+    args_model.add_argument('--model', type=str, default='lenet5', choices=[c[0] for c in getmembers(models, isclass) if c[1].__module__ == 'models'],
                         help="model name")
     args_model.add_argument('--model_args', type=str, default=None,
                         help="model arguments")

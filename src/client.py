@@ -86,11 +86,12 @@ class Client(object):
             train_acc, _ = self.inference(model, type='train', device=device)
             valid_acc, _ = self.inference(model, type='valid', device=device)
             test_acc, _ = self.inference(model, type='test', device=device)
-            logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, 0)
-            logger.add_scalar(f'Client {self.id}: Average loss', torch.nan, 0)
-            logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
+            logger.add_scalars(f'Client {self.id} - Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, 0)
+            logger.add_scalar(f'Client {self.id} - Average loss', torch.nan, 0)
+            logger.add_scalars(f'Client {self.id} - Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
 
         # Train model
+        model.to(device)
         model.train()
         model_old = deepcopy(model)
         loss_total, num_examples = 0., 0
@@ -130,7 +131,7 @@ class Client(object):
                         if not self.args.quiet:
                             print(f', Average loss: {loss_avg:.6f}', end='')
                         if logger is not None:
-                            logger.add_scalar(f'Client {self.id}: Average loss', loss_avg, self.iter+1)
+                            logger.add_scalar(f'Client {self.id} - Average loss', loss_avg, self.iter+1)
 
                         if scheduler.name == 'ReduceLROnPlateau':
                             scheduler.step(loss_avg)
@@ -143,14 +144,14 @@ class Client(object):
                         if not self.args.quiet:
                             print(f', Training accuracy: {train_acc:.3%}, Validation accuracy: {valid_acc:.3%}, Test accuracy: {test_acc:.3%}', end='')
                         if logger is not None:
-                            logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, self.iter+1)
+                            logger.add_scalars(f'Client {self.id} - Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, self.iter+1)
 
                     if not self.args.quiet: print()
 
                 self.iter += 1
 
             if logger is not None:
-                logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
+                logger.add_scalars(f'Client {self.id} - Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
             if scheduler.name != 'ReduceLROnPlateau':
                 scheduler.step() # TODO: do it at every batch for more flexibility?
 

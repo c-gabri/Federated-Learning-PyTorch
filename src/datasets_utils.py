@@ -83,6 +83,8 @@ def get_datasets(name, train_transforms, test_transforms, args):
     test_tvdataset.classes = classes
     '''
 
+    # TODO: remove, the model takes care of this
+    '''
     # RBG to grayscale or viceversa based on model number of channels
     num_channels = model_class.num_channels
     if train_tvdataset[0][0].shape[0] == 1 and num_channels == 3:
@@ -91,7 +93,10 @@ def get_datasets(name, train_transforms, test_transforms, args):
     elif train_tvdataset[0][0].shape[0] == 3 and num_channels == 1:
         train_transforms.append(tvtransforms.Grayscale())
         test_transforms.append(tvtransforms.Grayscale())
+    '''
 
+    # TODO: remove, the model takes care of this
+    '''
     # Resizing based on pretraining or on model input size
     if 'pretrained' in args.model_args and args.model_args['pretrained']:
         train_transforms.append(tvtransforms.Resize(224))
@@ -99,6 +104,7 @@ def get_datasets(name, train_transforms, test_transforms, args):
     elif 'resize' in vars(model_class):
         train_transforms.append(tvtransforms.Resize(model_class.resize))
         test_transforms.append(tvtransforms.Resize(model_class.resize))
+    '''
 
     # Determine training, validation and test indices
     if args.frac_valid > 0:

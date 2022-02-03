@@ -7,24 +7,35 @@ from math import ceil
 
 import torch
 from torch import nn
+import torchvision.transforms as tvtransforms
 
 
 class GhostModule(nn.Module):
-    def __init__(self, inp, oup, kernel_size=1, ratio=2, dw_size=3, stride=1, padding=0, relu=True):
+    def __init__(self, inp, oup, kernel_size=1, ratio=2, dw_size=3, stride=1, padding=0, relu=True, norm='batch'):
         super(GhostModule, self).__init__()
         self.oup = oup
         init_channels = ceil(oup / ratio)
         new_channels = init_channels*(ratio-1)
 
+        if norm == 'batch':
+            norm1 = nn.BatchNorm2d(init_channels)
+            norm2 = nn.BatchNorm2d(new_channels)
+        elif norm == 'group':
+            norm1 = nn.GroupNorm(int(init_channels/16), init_channels)
+            norm2 = nn.GroupNorm(int(new_channels/16), new_channels)
+        elif norm == None:
+            norm1 = nn.Identity(init_channels)
+            norm2 = nn.Identity(new_channels)
+
         self.primary_conv = nn.Sequential(
             nn.Conv2d(inp, init_channels, kernel_size, stride, padding, bias=False),
-            nn.BatchNorm2d(init_channels),
+            norm1,
             nn.ReLU(inplace=True) if relu else nn.Sequential(),
         )
 
         self.cheap_operation = nn.Sequential(
             nn.Conv2d(init_channels, new_channels, dw_size, 1, dw_size//2, groups=init_channels, bias=False),
-            nn.BatchNorm2d(new_channels),
+            norm2,
             nn.ReLU(inplace=True) if relu else nn.Sequential(),
         )
 
@@ -107,6 +118,13 @@ class LeNet5_Orig_F7(nn.Module):
         c = self.centers.unsqueeze(0).expand(size)
         return (x - c).pow(2).sum(-1)
 
+class Multiply(nn.Module):
+    def __init__(self, k):
+        super(activation, self).__init__()
+        self.k = k
+
+    def forward(self, x):
+        return x*self.k
 
 '''
 def conv_out_size(s_in, kernel_size, padding, stride):
