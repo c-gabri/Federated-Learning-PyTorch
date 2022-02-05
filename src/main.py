@@ -3,7 +3,8 @@
 # Python version: 3.8.10
 
 
-import copy
+import random
+from copy import deepcopy
 import numpy as np # TODO: try using torch only
 import re
 from time import time
@@ -27,10 +28,13 @@ if __name__ == '__main__':
     # Parse arguments
     args = args_parser()
 
-    # Initialize RNGs
+    ## Initialize RNGs and ensure reproducibility
     if args.seed is not None:
+        #torch.backends.cudnn.benchmark = False
+        #torch.use_deterministic_algorithms(True)
         torch.manual_seed(args.seed)
         np.random.seed(args.seed)
+        random.seed(args.seed)
 
     # Load datasets, splits and dataloaders
     datasets = getattr(datasets, args.dataset)(args)
@@ -69,20 +73,21 @@ if __name__ == '__main__':
         p_clients = None
     #print('Client sampling probabilities: %s' % p_clients)
 
+    # Determine number of clients to sample per round
+    m = max(int(args.frac_clients * args.num_clients), 1)
+
     # Load model
     num_classes = len(datasets['train'].classes)
     model = getattr(models, args.model)(num_classes, args.model_args).to(args.device)
 
     # Print experiment details
-    optimizer = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
-    scheduler = getattr(schedulers, args.sched)(optimizer, args.sched_args)
-    summary = exp_details(args, model, datasets['train'], datasets['valid'], datasets['test'], emds, scheduler)
+    summary = exp_details(args, model, loaders, emds)
     print('\n'+summary)
 
     # Initialize logger
     if not args.no_log:
         from torch.utils.tensorboard import SummaryWriter
-        logger = SummaryWriter(args.log_dir)
+        logger = SummaryWriter('runs/' + args.dir)
         logger.add_text('Experiment summary', re.sub('^', '    ', re.sub('\n', '\n    ', summary)))
         logger.add_figure('Distributions', dists_fig)
         logger.add_figure('Images', images_fig)
@@ -98,69 +103,86 @@ if __name__ == '__main__':
 
     for round in range(args.rounds):
         # Sample clients
-        m = max(int(args.frac_clients * args.num_clients), 1)
-        client_ids = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)
+        if args.resume:
+            client_ids = checkpoint['last_client_ids']
+        else:
+            client_ids = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)
 
         # Train client models
-        updates, num_examples, train_loss_avg = [], [], 0.
+        updates, num_examples, loss_avg = [], [], 0.
         for i, client_id in enumerate(client_ids):
-            client_update, client_num_examples, client_loss = clients[client_id].train(model=copy.deepcopy(model), round=round, i=i, m=m, device=args.device, logger=logger)
+            client_update, client_num_examples, client_loss = clients[client_id].train(model=deepcopy(model), round=round, i=i, m=m, device=args.device, logger=logger)
 
             if client_update is not None:
-                updates.append(copy.deepcopy(client_update))
-                train_loss_avg += client_loss * client_num_examples
+                updates.append(deepcopy(client_update))
+                loss_avg += client_loss * client_num_examples
                 num_examples.append(client_num_examples)
 
         if len(updates) > 0:
-            train_loss_avg /= sum(num_examples)
+            loss_avg /= sum(num_examples)
 
             # Update server model
             update_avg = average_updates(updates, num_examples)
             if v is None:
-                v = copy.deepcopy(update_avg)
+                v = deepcopy(update_avg)
             else:
                 for key in v.keys():
                     v[key] = torch.add(update_avg[key], v[key], alpha=args.server_momentum)
-            new_weights = copy.deepcopy(model.state_dict())
+            new_weights = deepcopy(model.state_dict())
             for key in new_weights.keys():
                 new_weights[key] = torch.sub(new_weights[key], v[key], alpha=args.server_lr)
             model.load_state_dict(new_weights)
 
             # Validate on client datasets
-            train_acc_avg, valid_acc_avg, train_num_examples, valid_num_examples = 0., 0., 0, 0
+            train_acc_avg, valid_acc_avg, test_acc_avg = 0., 0., 0.
+            train_num_examples, valid_num_examples, test_num_examples = 0, 0, 0
             for client_id in range(len(clients)):
                 train_acc_client, _ = clients[client_id].inference(model, type='train', device=args.device)
                 valid_acc_client, _ = clients[client_id].inference(model, type='valid', device=args.device)
-                if train_acc_client != torch.nan:
+                test_acc_client, _ = clients[client_id].inference(model, type='test', device=args.device)
+                if train_acc_client is not None:
                     train_acc_avg += train_acc_client * len(splits['train'][client_id])
                     train_num_examples += len(splits['train'][client_id])
-                if valid_acc_client != torch.nan:
+                if valid_acc_client is not None:
                     valid_acc_avg += valid_acc_client * len(splits['valid'][client_id])
                     valid_num_examples += len(splits['valid'][client_id])
+                if test_acc_client is not None:
+                    test_acc_avg += test_acc_client * len(splits['test'][client_id])
+                    test_num_examples += len(splits['test'][client_id])
             train_acc_avg /= train_num_examples
-            valid_acc_avg /= valid_num_examples
-        else:
-            train_loss_avg, train_acc_avg, valid_acc_avg = torch.nan, torch.nan, torch.nan
+            if valid_num_examples != 0:
+                valid_acc_avg /= valid_num_examples
+            else:
+                valid_acc_avg = None
+            test_acc_avg /= test_num_examples
 
-        # Validate on whole dataset
-        train_acc, _ = inference(model=model, loader=loaders['train'], device=args.device)
-        valid_acc, _ = inference(model=model, loader=loaders['valid'], device=args.device)
+            # Validate on whole dataset
+            train_acc, _ = inference(model=model, loader=loaders['train'], device=args.device)
+            valid_acc, _ = inference(model=model, loader=loaders['valid'], device=args.device)
+            test_acc, _ = inference(model=model, loader=loaders['test'], device=args.device)
 
-        # Print and log validation results
-        if not args.quiet:
-            print(f'    Average training loss: {train_loss_avg:.6f}')
-            print(f'    Average training accuracy: {train_acc_avg:.3%}')
-            print(f'    Average validation accuracy: {valid_acc_avg:.3%}')
-            print(f'    Training accuracy: {train_acc:.3%}')
-            print(f'    Validation accuracy: {valid_acc:.3%}')
+            # Print and log validation results
+            if not args.quiet:
+                print(f'    Average client loss: {loss_avg:.6f}')
+                print(f'    Training accuracy: {train_acc:.3%}')
+                print(f'    Average client training accuracy: {train_acc_avg:.3%}')
+                print(f'    Validation accuracy: {valid_acc if valid_acc is not None else torch.nan:.3%}')
+                print(f'    Average client validation accuracy: {valid_acc_avg if valid_acc_avg is not None else torch.nan:.3%}')
+                print(f'    Test accuracy: {test_acc:.3%}')
+                print(f'    Average client test accuracy: {test_acc_avg:.3%}')
 
-        if logger is not None:
-            logger.add_scalar(f'Average training loss', train_loss_avg, round+1)
-            logger.add_scalars(f'Average accuracy', {'Training': train_acc_avg, 'Validation': valid_acc_avg}, round+1)
-            logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Validation': valid_acc}, round+1)
+            if logger is not None:
+                logger.add_scalar(f'Average client loss', loss_avg, round+1)
+                if valid_acc_avg is not None and valid_acc is not None:
+                    logger.add_scalars(f'Average client accuracy', {'Training': train_acc_avg, 'Validation': valid_acc_avg, 'Test': test_acc_avg}, round+1)
+                    logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, round+1)
+                else:
+                    logger.add_scalars(f'Average client accuracy', {'Training': train_acc_avg, 'Test': test_acc_avg}, round+1)
+                    logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Test': test_acc}, round+1)
 
     train_end_time = time()
 
+    '''
     # Test on client datasets
     test_acc_avg, test_num_examples = 0., 0
     for client_id in range(len(clients)):
@@ -172,19 +194,22 @@ if __name__ == '__main__':
 
     # Test on whole dataset
     test_acc, _ = inference(model=model, loader=loaders['test'], device=args.device)
+    '''
 
     test_end_time = time()
 
     # Print and log test results
     print('\nResults:')
-    print(f'    Average test accuracy: {test_acc_avg:.3%}')
     print(f'    Test accuracy: {test_acc:.3%}')
+    print(f'    Average client test accuracy: {test_acc_avg:.3%}')
     print(f'    Train time: {timedelta(seconds=int(train_end_time-init_end_time))}')
-    print(f'    Test time: {timedelta(seconds=int(test_end_time-train_end_time))}')
+    #print(f'    Test time: {timedelta(seconds=int(test_end_time-train_end_time))}')
     print(f'    Total time: {timedelta(seconds=int(time()-start_time))}')
 
+    '''
     if logger is not None:
         logger.add_scalar('Average test accuracy', test_acc_avg, args.rounds)
         logger.add_scalar('Test accuracy', test_acc, args.rounds)
+    '''
 
-    logger.close()
+    if logger is not None: logger.close()

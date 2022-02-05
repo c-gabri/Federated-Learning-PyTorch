@@ -11,6 +11,7 @@ import torch
 from torch.nn import CrossEntropyLoss
 from torchinfo import summary
 
+import optimizers, schedulers
 
 class Scheduler():
     def __str__(self):
@@ -40,7 +41,7 @@ def inference(model, loader, device):
     """ Returns test accuracy and loss
     """
     if loader is None:
-        return torch.nan, torch.nan
+        return None, None
 
     # if (args.model == 'resnet'): # TODO: fix or remove
     #     model = torch.quantization.convert(model)
@@ -67,10 +68,15 @@ def inference(model, loader, device):
 
     return accuracy, loss
 
-def exp_details(args, model, train_dataset, valid_dataset, test_dataset, emds, scheduler):
+def exp_details(args, model, loaders, emds):
     device = str(torch.cuda.get_device_properties(args.device)) if args.device != 'cpu' else 'CPU'
-    summ = str(summary(model, (args.train_bs,)+tuple(train_dataset[0][0].shape), depth=10, verbose=0, col_names=['output_size','kernel_size','num_params','mult_adds']))
-    summ = '            '+summ.replace('\n', '\n            ')
+
+    input_size = (args.train_bs,) + tuple(loaders['train'].dataset[0][0].shape)
+    summ = str(summary(model, input_size, depth=10, verbose=0, col_names=['output_size','kernel_size','num_params','mult_adds']))
+    summ = '            ' + summ.replace('\n', '\n            ')
+
+    optimizer = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
+    scheduler = getattr(schedulers, args.sched)(optimizer, args.sched_args)
 
     if args.centralized:
         algo = 'Centralized'
@@ -119,12 +125,12 @@ def exp_details(args, model, train_dataset, valid_dataset, test_dataset, emds, s
 
         print('    Dataset:')
         print('        Training:')
-        print('            ' + str(train_dataset).replace('\n','\n            '))
-        if valid_dataset is not None:
+        print('            ' + str(loaders['train'].dataset.dataset).replace('\n','\n            '))
+        if loaders['valid'] is not None:
             print('        Validation:')
-            print('            ' + str(valid_dataset).replace('\n','\n            '))
+            print('            ' + str(loaders['valid'].dataset.dataset).replace('\n','\n            '))
         print('        Test:')
-        print('            ' + str(test_dataset).replace('\n','\n            '))
+        print('            ' + str(loaders['test'].dataset.dataset).replace('\n','\n            '))
         print()
 
         print('    Model:')

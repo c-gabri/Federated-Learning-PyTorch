@@ -6,6 +6,7 @@
 import argparse
 from inspect import getmembers, isfunction, isclass
 from ast import literal_eval
+from datetime import datetime
 
 from torch.cuda import device_count
 
@@ -88,7 +89,7 @@ def args_parser():
                         help="print and log average loss every specified number of batches")
     args_output.add_argument('--acc_every', type=int, default=0,
                         help="print and log accuracies every specified number of batches")
-    args_output.add_argument('--log_dir', type=str, default=None,
+    args_output.add_argument('--dir', type=str, default=None,
                         help="custom tensorboard log directory")
     args_output.add_argument('--no_log', action='store_true', default=False,
                         help="no tensorboard logs")
@@ -101,11 +102,16 @@ def args_parser():
                         help="random seed")
     args_other.add_argument('--frac_valid', type=float, default=0.2,
                         help="fraction of the training set to use for validation")
+    args_other.add_argument('--resume', type=str, default=None,
+                        help="resume from specified checkpoint")
 
     args = parser.parse_args()
     if args.help:
         parser.print_help()
         exit()
+
+    if args.dir is None:
+        args.dir = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
     args.model_args = args_str_to_dict(args.model_args)
     args.optim_args = args_str_to_dict(args.optim_args)

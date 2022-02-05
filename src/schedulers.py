@@ -4,7 +4,6 @@
 
 
 from torch.optim import lr_scheduler
-from pprint import pformat
 
 from utils import Scheduler
 
@@ -30,7 +29,7 @@ class const(lr_scheduler.ConstantLR, Scheduler):
        super(const, self).__init__(optimizer, **sched_args)
        self.name = 'ConstantLR'
 
-class reduceonplateau(lr_scheduler.ReduceLROnPlateau, Scheduler):
+class plateau_loss(lr_scheduler.ReduceLROnPlateau, Scheduler):
     def __init__(self, optimizer, sched_args):
-       super(reduceonplateau, self).__init__(optimizer, **sched_args)
-       self.name = 'ReduceLROnPlateau'
+       super(plateau_loss, self).__init__(optimizer, **sched_args)
+       self.name = 'ReduceLROnPlateauLoss'

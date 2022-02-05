@@ -259,6 +259,7 @@ class ghostnet(nn.Module):
         freeze = model_args['freeze'] if 'freeze' in model_args else False
 
         self.resize = Resize(224)
+        #self.resize = Resize(24)
 
         if pretrained:
             if width != 1:
