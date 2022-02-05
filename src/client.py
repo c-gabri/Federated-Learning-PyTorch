@@ -16,7 +16,7 @@ import optimizers, schedulers
 
 
 class Client(object):
-    def __init__(self, args, id, datasets, idxs):
+    def __init__(self, args, id, datasets, idxs, model):
         self.args = args
         self.id = id
         self.idxs = idxs
@@ -28,6 +28,11 @@ class Client(object):
         self.loaders['train'] = DataLoader(Subset(datasets['train'], idxs['train']), batch_size=self.train_bs, shuffle=True) if len(idxs['train']) > 0 else None
         self.loaders['valid'] = DataLoader(Subset(datasets['valid'], idxs['valid']), batch_size=args.test_bs, shuffle=False) if idxs['valid'] is not None and len(idxs['valid']) > 0 else None
         self.loaders['test'] = DataLoader(Subset(datasets['test'], idxs['test']), batch_size=args.test_bs, shuffle=False) if len(idxs['test']) > 0 else None
+
+        # Set optimizer and scheduler
+        self.model = model
+        self.optimizer = getattr(optimizers, self.args.optim)(self.model.parameters(), self.args.optim_args)
+        self.scheduler = getattr(schedulers, self.args.sched)(self.optimizer, self.args.sched_args)
 
         # Set criterion
         if args.fedir:
@@ -42,16 +47,11 @@ class Client(object):
         #print('Label weights: %s' % weight)
         self.criterion = CrossEntropyLoss(weight=weight)
 
-    def train(self, model, round, i, m, device, logger):
+    def train(self, model_state_dict, round, i, m, device, logger):
         # Drop client if train set is empty
         if self.loaders['train'] is None:
             if not self.args.quiet: print('    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | No data!')
             return None, None
-
-        # Set optimizer and scheduler
-        optimizer = getattr(optimizers, self.args.optim)(model.parameters(), self.args.optim_args)
-        scheduler = getattr(schedulers, self.args.sched)(optimizer, self.args.sched_args)
-        self.criterion = self.criterion.to(device)
 
         # Set epochs based on system heterogeneity
         if self.args.hetero > 0:
@@ -66,6 +66,8 @@ class Client(object):
                 epochs = np.random.randint(1, self.args.epochs) if straggler else self.args.epochs
         else:
                 epochs = self.args.epochs
+
+        self.model.load_state_dict(model_state_dict)
 
         # Adjust training loader
         if self.args.fedvc_nvc > 0:
@@ -84,33 +86,33 @@ class Client(object):
 
         # Log initial values
         if logger is not None:
-            train_acc, _ = self.inference(model, type='train', device=device)
-            valid_acc, _ = self.inference(model, type='valid', device=device)
-            test_acc, _ = self.inference(model, type='test', device=device)
+            train_acc, _ = self.inference(self.model, type='train', device=device)
+            valid_acc, _ = self.inference(self.model, type='valid', device=device)
+            test_acc, _ = self.inference(self.model, type='test', device=device)
             if valid_acc is not None:
                 logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, 0)
             else:
                 logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Test': test_acc}, 0)
             logger.add_scalar(f'Client {self.id}: Average loss', torch.nan, 0)
-            logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
+            logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': self.optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(self.optimizer.state_dict()['param_groups']))}, self.iter)
 
         # Train model
-        model.to(device)
-        model.train()
-        model_old = deepcopy(model)
+        self.model.to(device)
+        self.model.train()
+        model_old = deepcopy(self.model)
         loss_total, num_examples = 0., 0
 
         for epoch in range(epochs):
             for batch, (examples, labels) in enumerate(train_loader):
                 examples, labels = examples.to(device), labels.to(device)
-                model.zero_grad()
-                log_probs = model(examples)
+                self.model.zero_grad()
+                log_probs = self.model(examples)
                 loss = self.criterion(log_probs, labels)
 
                 # Add FedProx proximal term to loss
                 if self.args.fedprox_mu > 0 and epoch > 0:
                     w_diff = torch.tensor(0., device=device)
-                    for w, w_t in zip(model_old.parameters(), model.parameters()):
+                    for w, w_t in zip(model_old.parameters(), self.model.parameters()):
                         w_diff += torch.pow(torch.norm(w - w_t), 2)
                     loss += self.args.fedprox_mu / 2. * w_diff
 
@@ -118,14 +120,16 @@ class Client(object):
                 num_examples += len(labels)
 
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
 
                 if (batch + 1) % loss_every == 0 or (batch + 1) % acc_every == 0:
                     if not self.args.quiet:
+                        lrs = ['%.3g' % param_group['lr'] for param_group in self.optimizer.state_dict()['param_groups']]
                         print('    ' + f'Round: {round+1}/{self.args.rounds} | '\
                                        f'Client: {self.id} ({i+1}/{m}) | '\
                                        f'Epoch: {epoch+1}/{epochs} | '\
                                        f'Batch: {batch+1}/{len(train_loader)} (Example: {num_examples}/{len(train_loader.dataset)}) | '\
+                                       f'Learning rates: {lrs}, ' \
                                        f'Loss: {loss.item():.6f}', end='')
 
                      # Print and log average loss every loss_every batches
@@ -137,14 +141,14 @@ class Client(object):
                         if logger is not None:
                             logger.add_scalar(f'Client {self.id}: Average loss', loss_avg, self.iter+1)
 
-                        if scheduler.name == 'ReduceLROnPlateauLoss':
-                            scheduler.step(loss_avg)
+                        if self.scheduler.name == 'ReduceLROnPlateauLoss':
+                            self.scheduler.step(loss_avg)
 
                     # Print and log accuracies every acc_every batches
                     if (batch + 1) % acc_every == 0:
-                        train_acc, _ = self.inference(model, type='train', device=device)
-                        valid_acc, _ = self.inference(model, type='valid', device=device)
-                        test_acc, _ = self.inference(model, type='test', device=device)
+                        train_acc, _ = self.inference(self.model, type='train', device=device)
+                        valid_acc, _ = self.inference(self.model, type='valid', device=device)
+                        test_acc, _ = self.inference(self.model, type='test', device=device)
                         if not self.args.quiet:
                             print(f', Training accuracy: {train_acc:.3%}, Validation accuracy: {valid_acc if valid_acc is not None else torch.nan:.3%}, Test accuracy: {test_acc:.3%}', end='')
                         if logger is not None:
@@ -152,20 +156,19 @@ class Client(object):
                                 logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, self.iter+1)
                             else:
                                 logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Test': test_acc}, self.iter+1)
-
                     if not self.args.quiet: print()
 
                 self.iter += 1
 
             if logger is not None:
-                logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(optimizer.state_dict()['param_groups']))}, self.iter)
-            if scheduler.name != 'ReduceLROnPlateauLoss':
-                scheduler.step() # TODO: do it at every batch for more flexibility?
+                logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': self.optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(self.optimizer.state_dict()['param_groups']))}, self.iter)
+            if self.scheduler.name != 'ReduceLROnPlateauLoss' and self.scheduler.name != 'ReduceLROnPlateauLossAvg':
+                self.scheduler.step() # TODO: do it at every batch for more flexibility?
 
         # Compute model update
         model_update = deepcopy(model_old.state_dict())
         for key in model_update.keys():
-            model_update[key] = torch.sub(model_update[key], model.state_dict()[key])
+            model_update[key] = torch.sub(model_update[key], self.model.state_dict()[key])
 
         return model_update, len(train_loader.dataset), loss_avg
 

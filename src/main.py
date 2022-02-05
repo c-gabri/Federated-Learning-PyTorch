@@ -30,17 +30,23 @@ if __name__ == '__main__':
 
     ## Initialize RNGs and ensure reproducibility
     if args.seed is not None:
+        #from os import environ
+        #environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
         #torch.backends.cudnn.benchmark = False
         #torch.use_deterministic_algorithms(True)
         torch.manual_seed(args.seed)
         np.random.seed(args.seed)
         random.seed(args.seed)
 
-    # Load datasets, splits and dataloaders
+    # Load datasets and splits
     datasets = getattr(datasets, args.dataset)(args)
-
     splits, emds, dists = get_splits(datasets, args.num_clients, args.iid, args.balance, args.no_replace)
 
+    # Get original and transformed examples
+    images_fig = get_images_fig(datasets, args.train_bs)
+    dists_fig = get_dists_fig(dists, args.iid, args.balance)
+
+    # Create centralized dataloaders
     loaders = {}
     for type in splits:
         if splits[type] is not None:
@@ -53,15 +59,15 @@ if __name__ == '__main__':
         else:
             loaders[type] = None
 
-    # Get original and transformed examples
-    images_fig = get_images_fig(datasets, args.train_bs)
-    dists_fig = get_dists_fig(dists, args.iid, args.balance)
+    # Load model
+    num_classes = len(datasets['train'].classes)
+    model = getattr(models, args.model)(num_classes, args.model_args).to(args.device)
 
     # Create clients
     clients = []
     for client_id in range(args.num_clients):
         client_idxs = {key:splits[key][client_id] if splits[key] is not None else None for key in splits.keys()}
-        clients.append(Client(args=args, id=client_id, datasets=datasets, idxs=client_idxs))
+        clients.append(Client(args=args, id=client_id, datasets=datasets, idxs=client_idxs, model=deepcopy(model)))
 
     # Set client sampling probabilities. TODO: allow non-uniform w/o FedVC?
     if args.fedvc_nvc > 0:
@@ -75,10 +81,6 @@ if __name__ == '__main__':
 
     # Determine number of clients to sample per round
     m = max(int(args.frac_clients * args.num_clients), 1)
-
-    # Load model
-    num_classes = len(datasets['train'].classes)
-    model = getattr(models, args.model)(num_classes, args.model_args).to(args.device)
 
     # Print experiment details
     summary = exp_details(args, model, loaders, emds)
@@ -111,7 +113,7 @@ if __name__ == '__main__':
         # Train client models
         updates, num_examples, loss_avg = [], [], 0.
         for i, client_id in enumerate(client_ids):
-            client_update, client_num_examples, client_loss = clients[client_id].train(model=deepcopy(model), round=round, i=i, m=m, device=args.device, logger=logger)
+            client_update, client_num_examples, client_loss = clients[client_id].train(model_state_dict=model.state_dict(), round=round, i=i, m=m, device=args.device, logger=logger)
 
             if client_update is not None:
                 updates.append(deepcopy(client_update))
@@ -120,6 +122,10 @@ if __name__ == '__main__':
 
         if len(updates) > 0:
             loss_avg /= sum(num_examples)
+
+            if args.sched == 'plateau_loss_avg':
+                for client in clients:
+                    client.scheduler.step(loss_avg)
 
             # Update server model
             update_avg = average_updates(updates, num_examples)
@@ -182,7 +188,6 @@ if __name__ == '__main__':
 
     train_end_time = time()
 
-    '''
     # Test on client datasets
     test_acc_avg, test_num_examples = 0., 0
     for client_id in range(len(clients)):
@@ -194,7 +199,6 @@ if __name__ == '__main__':
 
     # Test on whole dataset
     test_acc, _ = inference(model=model, loader=loaders['test'], device=args.device)
-    '''
 
     test_end_time = time()
 
@@ -206,10 +210,8 @@ if __name__ == '__main__':
     #print(f'    Test time: {timedelta(seconds=int(test_end_time-train_end_time))}')
     print(f'    Total time: {timedelta(seconds=int(time()-start_time))}')
 
-    '''
     if logger is not None:
         logger.add_scalar('Average test accuracy', test_acc_avg, args.rounds)
         logger.add_scalar('Test accuracy', test_acc, args.rounds)
-    '''
 
     if logger is not None: logger.close()
