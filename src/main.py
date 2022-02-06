@@ -163,28 +163,28 @@ if __name__ == '__main__':
             test_acc_avg /= test_num_examples
 
             # Validate on whole dataset
-            train_acc, _ = inference(model=model, loader=loaders['train'], device=args.device)
-            valid_acc, _ = inference(model=model, loader=loaders['valid'], device=args.device)
-            test_acc, _ = inference(model=model, loader=loaders['test'], device=args.device)
+            #train_acc, _ = inference(model=model, loader=loaders['train'], device=args.device)
+            #valid_acc, _ = inference(model=model, loader=loaders['valid'], device=args.device)
+            #test_acc, _ = inference(model=model, loader=loaders['test'], device=args.device)
 
             # Print and log validation results
             if not args.quiet:
                 print(f'    Average client loss: {loss_avg:.6f}')
-                print(f'    Training accuracy: {train_acc:.3%}')
+                #print(f'    Training accuracy: {train_acc:.3%}')
                 print(f'    Average client training accuracy: {train_acc_avg:.3%}')
-                print(f'    Validation accuracy: {valid_acc if valid_acc is not None else torch.nan:.3%}')
+                #print(f'    Validation accuracy: {valid_acc if valid_acc is not None else torch.nan:.3%}')
                 print(f'    Average client validation accuracy: {valid_acc_avg if valid_acc_avg is not None else torch.nan:.3%}')
-                print(f'    Test accuracy: {test_acc:.3%}')
+                #print(f'    Test accuracy: {test_acc:.3%}')
                 print(f'    Average client test accuracy: {test_acc_avg:.3%}')
 
             if logger is not None:
                 logger.add_scalar(f'Average client loss', loss_avg, round+1)
                 if valid_acc_avg is not None and valid_acc is not None:
                     logger.add_scalars(f'Average client accuracy', {'Training': train_acc_avg, 'Validation': valid_acc_avg, 'Test': test_acc_avg}, round+1)
-                    logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, round+1)
+                    #logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, round+1)
                 else:
                     logger.add_scalars(f'Average client accuracy', {'Training': train_acc_avg, 'Test': test_acc_avg}, round+1)
-                    logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Test': test_acc}, round+1)
+                    #logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Test': test_acc}, round+1)
 
     train_end_time = time()
 
@@ -198,13 +198,13 @@ if __name__ == '__main__':
     test_acc_avg /= test_num_examples
 
     # Test on whole dataset
-    test_acc, _ = inference(model=model, loader=loaders['test'], device=args.device)
+    #test_acc, _ = inference(model=model, loader=loaders['test'], device=args.device)
 
     test_end_time = time()
 
     # Print and log test results
     print('\nResults:')
-    print(f'    Test accuracy: {test_acc:.3%}')
+    #print(f'    Test accuracy: {test_acc:.3%}')
     print(f'    Average client test accuracy: {test_acc_avg:.3%}')
     print(f'    Train time: {timedelta(seconds=int(train_end_time-init_end_time))}')
     #print(f'    Test time: {timedelta(seconds=int(test_end_time-train_end_time))}')
@@ -212,6 +212,6 @@ if __name__ == '__main__':
 
     if logger is not None:
         logger.add_scalar('Average test accuracy', test_acc_avg, args.rounds)
-        logger.add_scalar('Test accuracy', test_acc, args.rounds)
+        #logger.add_scalar('Test accuracy', test_acc, args.rounds)
 
     if logger is not None: logger.close()

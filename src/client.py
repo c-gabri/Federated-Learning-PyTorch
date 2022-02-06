@@ -85,7 +85,7 @@ class Client(object):
         acc_every = self.args.acc_every if self.args.acc_every > 0 else len(train_loader)
 
         # Log initial values
-        if logger is not None and self.args.centralized:
+        if self.args.centralized and logger is not None:
             train_acc, _ = self.inference(self.model, type='train', device=device)
             valid_acc, _ = self.inference(self.model, type='valid', device=device)
             test_acc, _ = self.inference(self.model, type='test', device=device)
@@ -138,20 +138,20 @@ class Client(object):
                         loss_total, num_examples = 0., 0
                         if not self.args.quiet:
                             print(f', Average loss: {loss_avg:.6f}', end='')
-                        if logger is not None and self.args.centralized:
+                        if self.args.centralized and logger is not None:
                             logger.add_scalar(f'Client {self.id}: Average loss', loss_avg, self.iter+1)
 
                         if self.scheduler.name == 'ReduceLROnPlateauLoss':
                             self.scheduler.step(loss_avg)
 
                     # Print and log accuracies every acc_every batches
-                    if (batch + 1) % acc_every == 0:
+                    if self.args.centralized and (batch + 1) % acc_every == 0:
                         train_acc, _ = self.inference(self.model, type='train', device=device)
                         valid_acc, _ = self.inference(self.model, type='valid', device=device)
                         test_acc, _ = self.inference(self.model, type='test', device=device)
                         if not self.args.quiet:
                             print(f', Training accuracy: {train_acc:.3%}, Validation accuracy: {valid_acc if valid_acc is not None else torch.nan:.3%}, Test accuracy: {test_acc:.3%}', end='')
-                        if logger is not None and self.args.centralized:
+                        if logger is not None :
                             if valid_acc is not None:
                                 logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, self.iter+1)
                             else:
@@ -160,7 +160,7 @@ class Client(object):
 
                 self.iter += 1
 
-            if logger is not None and self.args.centralized:
+            if self.args.centralized and logger is not None:
                 logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': self.optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(self.optimizer.state_dict()['param_groups']))}, self.iter)
             if self.scheduler.name != 'ReduceLROnPlateauLoss' and self.scheduler.name != 'ReduceLROnPlateauLossAvg':
                 self.scheduler.step() # TODO: do it at every batch for more flexibility?
