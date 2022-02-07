@@ -105,10 +105,7 @@ if __name__ == '__main__':
 
     for round in range(args.rounds):
         # Sample clients
-        if args.resume:
-            client_ids = checkpoint['last_client_ids']
-        else:
-            client_ids = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)
+        client_ids = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)
 
         # Train client models
         updates, num_examples, loss_avg = [], [], 0.

@@ -34,17 +34,17 @@ def args_parser():
 
     # Algorithm
     args_algo = parser.add_argument_group('algorithm arguments')
-    args_algo.add_argument('--rounds', type=int, default=10,
+    args_algo.add_argument('--rounds', type=int, default=200,
                         help="communication rounds")
     args_algo.add_argument('--num_clients', '-K', type=int, default=100,
                         help="number of clients")
     args_algo.add_argument('--frac_clients', '-C', type=float, default=0.1,
                         help="fraction of clients")
-    args_algo.add_argument('--epochs', '-E', type=int, default=10,
+    args_algo.add_argument('--epochs', '-E', type=int, default=5,
                         help="number of epochs")
     args_algo.add_argument('--train_bs', '-B', type=int, default=50,
                         help="train batch size")
-    args_algo.add_argument('--test_bs', type=int, default=128,
+    args_algo.add_argument('--test_bs', type=int, default=256,
                         help="test batch size")
     args_algo.add_argument('--centralized', action='store_true', default=False,
                         help="use centralized training")
@@ -65,7 +65,7 @@ def args_parser():
     args_optim_sched = parser.add_argument_group('optimizer and scheduler arguments')
     args_optim_sched.add_argument('--optim', type=str, default='sgd', choices=[f[0] for f in getmembers(optimizers, isfunction)],
                         help="optimizer name")
-    args_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01',
+    args_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01,momentum=0.9,weight_decay=4e-4',
                         help="optimizer arguments")
     args_optim_sched.add_argument('--sched', type=str, default='fixed', choices=[c[0] for c in getmembers(schedulers, isclass) if c[1].__module__ == 'schedulers'],
                         help="scheduler name")
@@ -76,7 +76,7 @@ def args_parser():
     args_model = parser.add_argument_group('model arguments')
     args_model.add_argument('--model', type=str, default='lenet5', choices=[c[0] for c in getmembers(models, isclass) if c[1].__module__ == 'models'],
                         help="model name")
-    args_model.add_argument('--model_args', type=str, default=None,
+    args_model.add_argument('--model_args', type=str, default='ghost=True,norm=None',
                         help="model arguments")
     args_model.add_argument('--device', type=str, default='cuda:0', choices=['cuda:%d' % device for device in range(device_count())] + ['cpu'],
                         help="device to train and test with")
@@ -100,10 +100,8 @@ def args_parser():
                         help="show this help message and exit")
     args_other.add_argument('--seed', type=int, default=0,
                         help="random seed")
-    args_other.add_argument('--frac_valid', type=float, default=0.2,
+    args_other.add_argument('--frac_valid', type=float, default=0,
                         help="fraction of the training set to use for validation")
-    args_other.add_argument('--resume', type=str, default=None,
-                        help="resume from specified checkpoint")
 
     args = parser.parse_args()
     if args.help:
