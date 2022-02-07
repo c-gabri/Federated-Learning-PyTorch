@@ -7,6 +7,7 @@ import argparse
 from inspect import getmembers, isfunction, isclass
 from ast import literal_eval
 from datetime import datetime
+import sys
 
 from torch.cuda import device_count
 
@@ -36,6 +37,8 @@ def args_parser():
     args_algo = parser.add_argument_group('algorithm arguments')
     args_algo.add_argument('--rounds', type=int, default=200,
                         help="communication rounds")
+    args_algo.add_argument('--iters', type=int, default=None,
+                        help="total iterations, overrides --rounds")
     args_algo.add_argument('--num_clients', '-K', type=int, default=100,
                         help="number of clients")
     args_algo.add_argument('--frac_clients', '-C', type=float, default=0.1,
@@ -107,6 +110,9 @@ def args_parser():
     if args.help:
         parser.print_help()
         exit()
+
+    if args.iters is not None:
+        args.rounds = sys.maxsize
 
     if args.dir is None:
         args.dir = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')

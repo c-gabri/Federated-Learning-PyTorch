@@ -102,6 +102,8 @@ if __name__ == '__main__':
     # Train server model
     if not args.quiet: print('Training:')
     v = None
+    total_iters = 0
+    stop = False
 
     for round in range(args.rounds):
         # Sample clients
@@ -110,12 +112,17 @@ if __name__ == '__main__':
         # Train client models
         updates, num_examples, loss_avg = [], [], 0.
         for i, client_id in enumerate(client_ids):
-            client_update, client_num_examples, client_loss = clients[client_id].train(model_state_dict=model.state_dict(), round=round, i=i, m=m, device=args.device, logger=logger)
+            client_update, client_num_examples, client_num_iters, client_loss = clients[client_id].train(model_state_dict=model.state_dict(), round=round, total_iters=total_iters, i=i, m=m, device=args.device, logger=logger)
 
             if client_update is not None:
                 updates.append(deepcopy(client_update))
                 loss_avg += client_loss * client_num_examples
                 num_examples.append(client_num_examples)
+
+            total_iters += client_num_iters
+            if args.iters is not None and total_iters >= args.iters:
+                stop = True
+                break
 
         if len(updates) > 0:
             loss_avg /= sum(num_examples)
@@ -166,6 +173,7 @@ if __name__ == '__main__':
 
             # Print and log validation results
             if not args.quiet:
+                print(f'    Total iterations: {total_iters}')
                 print(f'    Average client loss: {loss_avg:.6f}')
                 #print(f'    Training accuracy: {train_acc:.3%}')
                 print(f'    Average client training accuracy: {train_acc_avg:.3%}')
@@ -182,6 +190,8 @@ if __name__ == '__main__':
                 else:
                     logger.add_scalars(f'Average client accuracy', {'Training': train_acc_avg, 'Test': test_acc_avg}, round+1)
                     #logger.add_scalars(f'Accuracy', {'Training': train_acc, 'Test': test_acc}, round+1)
+
+        if stop: break
 
     train_end_time = time()
 
