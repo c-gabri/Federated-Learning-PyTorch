@@ -50,7 +50,7 @@ class Client(object):
     def train(self, model_state_dict, round, total_iters, i, m, device, logger):
         # Drop client if train set is empty
         if self.loaders['train'] is None:
-            if not self.args.quiet: print('    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | No data!')
+            if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | No data!')
             return None, 0, 0, None
 
         # Set epochs based on system heterogeneity
@@ -60,7 +60,7 @@ class Client(object):
 
                 # Drop straggler if not using FedProx
                 if straggler and self.args.fedprox_mu == 0:
-                    if not self.args.quiet: print('    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | Straggler!')
+                    if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | Straggler!')
                     return None, 0, 0, None
 
                 epochs = np.random.randint(1, self.args.epochs) if straggler else self.args.epochs
