@@ -68,6 +68,8 @@ class Client(object):
                 epochs = self.args.epochs
 
         self.model.load_state_dict(model_state_dict)
+        self.model.to(device)
+        self.criterion.to(device)
 
         # Adjust training loader
         if self.args.fedvc_nvc > 0:

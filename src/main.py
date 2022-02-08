@@ -199,7 +199,7 @@ if __name__ == '__main__':
     test_acc_avg, test_num_examples = 0., 0
     for client_id in range(len(clients)):
         test_acc_client, _ = clients[client_id].inference(model, type='test', device=args.device)
-        if test_acc_client != torch.nan:
+        if test_acc_client is not None:
             test_acc_avg += test_acc_client * len(splits['test'][client_id])
             test_num_examples += len(splits['test'][client_id])
     test_acc_avg /= test_num_examples

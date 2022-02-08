@@ -4,3 +4,4 @@ numpy==1.17.4
 tensorboardX==2.4.1
 matplotlib==3.4.3
 torchinfo==1.6.3
+timm
