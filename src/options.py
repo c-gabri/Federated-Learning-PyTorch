@@ -68,7 +68,7 @@ def args_parser():
     args_optim_sched = parser.add_argument_group('optimizer and scheduler arguments')
     args_optim_sched.add_argument('--optim', type=str, default='sgd', choices=[f[0] for f in getmembers(optimizers, isfunction)],
                         help="optimizer name")
-    args_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01,momentum=0.9,weight_decay=4e-4',
+    args_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01,momentum=0,weight_decay=4e-4',
                         help="optimizer arguments")
     args_optim_sched.add_argument('--sched', type=str, default='fixed', choices=[c[0] for c in getmembers(schedulers, isclass) if c[1].__module__ == 'schedulers'],
                         help="scheduler name")
