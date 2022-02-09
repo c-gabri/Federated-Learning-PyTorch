@@ -63,6 +63,8 @@ def args_parser():
                         help="use FedSGD algorithm")
     args_algo.add_argument('--server_lr', type=float, default=1,
                         help="server learning rate")
+    args_algo.add_argument('--drop_stragglers', action='store_true', default=False,
+                        help="drop stragglers when --hetero > 0")
 
     # Optimizer and scheduler
     args_optim_sched = parser.add_argument_group('optimizer and scheduler arguments')

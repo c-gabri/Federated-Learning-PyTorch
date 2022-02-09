@@ -54,19 +54,16 @@ class Client(object):
             if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | No data!')
             return None, 0, 0, None
 
-        # Set epochs based on system heterogeneity
-        if self.args.hetero > 0:
-                # Determine if client is a straggler
-                straggler = np.random.binomial(1, self.args.hetero)
+        # Determine if client is a straggler
+        straggler = np.random.binomial(1, self.args.hetero)
 
-                # Drop straggler if not using FedProx
-                if straggler and self.args.fedprox_mu == 0:
-                    if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | Straggler!')
-                    return None, 0, 0, None
+        if straggler and self.args.drop_stragglers:
+            # Drop straggler if instructed to do so
+            if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | Straggler!')
+            return None, 0, 0, None
 
-                epochs = np.random.randint(1, self.args.epochs) if straggler else self.args.epochs
-        else:
-                epochs = self.args.epochs
+        # Set amount of local work
+        epochs = np.random.randint(1, self.args.epochs) if straggler else self.args.epochs
 
         self.model.load_state_dict(model_state_dict)
         self.model.to(device)
