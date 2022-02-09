@@ -137,10 +137,12 @@ if __name__ == '__main__':
                 v = deepcopy(update_avg)
             else:
                 for key in v.keys():
-                    v[key] = torch.add(update_avg[key], v[key], alpha=args.server_momentum)
+                    #v[key] = torch.add(update_avg[key], v[key], alpha=args.server_momentum)
+                    v[key] = update_avg[key] + v[key] * args.server_momentum
             new_weights = deepcopy(model.state_dict())
             for key in new_weights.keys():
-                new_weights[key] = torch.sub(new_weights[key], v[key], alpha=args.server_lr)
+                #new_weights[key] = torch.sub(new_weights[key], v[key], alpha=args.server_lr)
+                new_weights[key] = new_weights[key] - v[key] * args.server_lr
             model.load_state_dict(new_weights)
 
             # Validate on client datasets

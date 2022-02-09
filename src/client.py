@@ -41,6 +41,7 @@ class Client(object):
             p = torch.tensor([(torch.tensor(datasets['train'].targets) == label).sum() for label in labels]) / len(datasets['train'].targets)
             q = torch.tensor([(torch.tensor(datasets['train'].targets)[idxs['train']] == label).sum() for label in labels]) / len(torch.tensor(datasets['train'].targets)[idxs['train']])
             weight = p/q
+            #weight = q/p
         else:
             # No FedIR
             weight = None
@@ -102,11 +103,12 @@ class Client(object):
         self.model.to(device)
         self.model.train()
         model_old = deepcopy(self.model)
-        loss_total, num_examples = 0., 0
+        loss_total, num_examples_total = 0., 0
         iters = 0
         stop = False
 
         for epoch in range(epochs):
+            num_examples = 0
             for batch, (examples, labels) in enumerate(train_loader):
                 examples, labels = examples.to(device), labels.to(device)
                 self.model.zero_grad()
@@ -121,8 +123,9 @@ class Client(object):
                     loss += self.args.fedprox_mu / 2. * w_diff
 
                 loss_total += loss.item()
+                num_examples_total += len(labels)
                 num_examples += len(labels)
-                loss_avg = loss_total/num_examples
+                loss_avg = loss_total/num_examples_total
 
                 loss.backward()
                 self.optimizer.step()
