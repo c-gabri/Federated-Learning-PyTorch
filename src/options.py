@@ -21,15 +21,15 @@ def args_parser():
     # Federated setting
     args_setting = parser.add_argument_group('federated setting arguments')
     args_setting.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction) if f[1].__module__ == 'datasets'],
-                        help="dataset name")
+                        help="dataset, place yours in datasets.py")
     args_setting.add_argument('--no_augment', action='store_true', default=False,
                         help="don't augment dataset")
     args_setting.add_argument('--iid', type=float, default='inf',
-                        help="identicalness of class distributions")
+                        help="identicalness of client distributions, 'inf' for IID")
     args_setting.add_argument('--balance', type=float, default='inf',
-                        help="client balance")
+                        help="balance of client distributions, 'inf' for balanced")
     args_setting.add_argument('--no_replace', action='store_true', default=False,
-                        help="try to split the dataset without replacement")
+                        help="try to split the dataset among clients without replacement")
     args_setting.add_argument('--hetero', type=float, default=0,
                         help="system heterogeneity")
 
@@ -42,49 +42,47 @@ def args_parser():
     args_algo.add_argument('--num_clients', '-K', type=int, default=100,
                         help="number of clients")
     args_algo.add_argument('--frac_clients', '-C', type=float, default=0.1,
-                        help="fraction of clients")
+                        help="fraction of clients selected at each round")
     args_algo.add_argument('--epochs', '-E', type=int, default=5,
-                        help="number of epochs")
+                        help="number of local epochs (or global epochs when --centralized)")
     args_algo.add_argument('--train_bs', '-B', type=int, default=50,
-                        help="train batch size")
+                        help="training batch size")
     args_algo.add_argument('--test_bs', type=int, default=256,
-                        help="test batch size")
+                        help="test and validation batch size")
     args_algo.add_argument('--centralized', action='store_true', default=False,
-                        help="use centralized training")
+                        help="use centralized algorithm")
     args_algo.add_argument('--server_momentum', type=float, default=0,
-                        help="use FedAvgM algorithm with specified server momentum")
+                        help="server momentum for FedAvgM algorithm, 0 for no FedAvgM")
     args_algo.add_argument('--fedir', action='store_true', default=False,
                         help="use FedIR algorithm")
     args_algo.add_argument('--fedvc_nvc', type=int, default=0,
-                        help="use FedVC algorithm with specified client size")
+                        help="virtual client size for FedVC, 0 for no FedVC")
     args_algo.add_argument('--fedprox_mu', type=float, default=0,
-                        help="use FedProx algorithm with specified mu")
+                        help="mu parameter for FedProx algorithm, 0 for no FedProx")
+    args_algo.add_argument('--drop_stragglers', action='store_true', default=False,
+                        help="drop stragglers when --hetero > 0")
     args_algo.add_argument('--fedsgd', action='store_true', default=False,
                         help="use FedSGD algorithm")
     args_algo.add_argument('--server_lr', type=float, default=1,
                         help="server learning rate")
-    args_algo.add_argument('--drop_stragglers', action='store_true', default=False,
-                        help="drop stragglers when --hetero > 0")
 
     # Optimizer and scheduler
     args_optim_sched = parser.add_argument_group('optimizer and scheduler arguments')
     args_optim_sched.add_argument('--optim', type=str, default='sgd', choices=[f[0] for f in getmembers(optimizers, isfunction)],
-                        help="optimizer name")
+                        help="optimizer, place yours in optimizers.py")
     args_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01,momentum=0,weight_decay=4e-4',
                         help="optimizer arguments")
     args_optim_sched.add_argument('--sched', type=str, default='fixed', choices=[c[0] for c in getmembers(schedulers, isclass) if c[1].__module__ == 'schedulers'],
-                        help="scheduler name")
+                        help="scheduler, place yours in schedulers.py")
     args_optim_sched.add_argument('--sched_args', type=str, default=None,
                         help="scheduler arguments")
 
     # Model
     args_model = parser.add_argument_group('model arguments')
     args_model.add_argument('--model', type=str, default='lenet5', choices=[c[0] for c in getmembers(models, isclass) if c[1].__module__ == 'models'],
-                        help="model name")
+                        help="model, place yours in models.py")
     args_model.add_argument('--model_args', type=str, default='ghost=True,norm=None',
                         help="model arguments")
-    args_model.add_argument('--device', type=str, default='cuda:0', choices=['cuda:%d' % device for device in range(device_count())] + ['cpu'],
-                        help="device to train and test with")
 
     # Output
     args_output = parser.add_argument_group('output arguments')
@@ -93,7 +91,7 @@ def args_parser():
     args_output.add_argument('--loss_every', type=int, default=0,
                         help="print and log average loss every specified number of batches")
     args_output.add_argument('--acc_every', type=int, default=0,
-                        help="print and log accuracies every specified number of batches")
+                        help="print and log training, validation and test accuracies every specified number of batches")
     args_output.add_argument('--dir', type=str, default=None,
                         help="custom tensorboard log directory")
     args_output.add_argument('--no_log', action='store_true', default=False,
@@ -107,6 +105,8 @@ def args_parser():
                         help="random seed")
     args_other.add_argument('--frac_valid', type=float, default=0,
                         help="fraction of the training set to use for validation")
+    args_model.add_argument('--device', type=str, default='cuda:0', choices=['cuda:%d' % device for device in range(device_count())] + ['cpu'],
+                        help="device to train, validate and test with")
 
     args = parser.parse_args()
     if args.help:
