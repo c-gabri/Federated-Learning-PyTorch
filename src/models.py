@@ -9,7 +9,7 @@ import torchvision.models as tvmodels
 from torchvision.transforms import Resize
 
 from ghostnet import ghostnet as load_ghostnet
-from tinynet import tinynet as load_tinynet
+#from tinynet import tinynet as load_tinynet
 from models_utils import *
 
 
@@ -278,6 +278,7 @@ class ghostnet(nn.Module):
         x = self.model(x)
         return x
 
+'''
 class tinynet(nn.Module):
     variants = {'a': (0.86, 1.0, 1.2),
                 'b': (0.84, 0.75, 1.1),
@@ -321,6 +322,7 @@ class tinynet(nn.Module):
         x = self.resize(x)
         x = self.model(x)
         return x
+'''
 
 class mobilenet_v3(nn.Module):
     def __init__(self, num_classes, model_args):

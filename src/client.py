@@ -59,7 +59,7 @@ class Client(object):
 
         if straggler and self.args.drop_stragglers:
             # Drop straggler if instructed to do so
-            if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | Straggler!')
+            if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | Dropped straggler!')
             return None, 0, 0, None
 
         # Set amount of local work
