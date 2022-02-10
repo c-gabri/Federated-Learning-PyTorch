@@ -33,8 +33,3 @@ class plateau_loss(lr_scheduler.ReduceLROnPlateau, Scheduler):
     def __init__(self, optimizer, sched_args):
        super(plateau_loss, self).__init__(optimizer, **sched_args)
        self.name = 'ReduceLROnPlateauLoss'
-
-class plateau_loss_avg(lr_scheduler.ReduceLROnPlateau, Scheduler):
-    def __init__(self, optimizer, sched_args):
-       super(plateau_loss_avg, self).__init__(optimizer, **sched_args)
-       self.name = 'ReduceLROnPlateauLossAvg'

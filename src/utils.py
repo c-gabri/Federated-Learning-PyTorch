@@ -26,9 +26,6 @@ class Scheduler():
 
 
 def average_updates(w, n_k):
-    """
-    Returns the average of the updates
-    """
     w_avg = deepcopy(w[0])
     for key in w_avg.keys():
         w_avg[key] = torch.mul(w_avg[key], n_k[0])
@@ -38,26 +35,17 @@ def average_updates(w, n_k):
     return w_avg
 
 def inference(model, loader, device):
-    """ Returns test accuracy and loss
-    """
     if loader is None:
         return None, None
 
-    # if (args.model == 'resnet'): # TODO: fix or remove
-    #     model = torch.quantization.convert(model)
-
-    criterion = CrossEntropyLoss().to(device) # TODO: use same criterion used during training?
+    criterion = CrossEntropyLoss().to(device)
     loss, total, correct = 0., 0, 0
     model.eval()
     with torch.no_grad():
         for batch, (examples, labels) in enumerate(loader):
             examples, labels = examples.to(device), labels.to(device)
-
-            # Inference
             log_probs = model(examples)
             loss += criterion(log_probs, labels).item() * len(labels)
-
-            # Prediction
             _, pred_labels = torch.max(log_probs, 1)
             pred_labels = pred_labels.view(-1)
             correct += torch.sum(torch.eq(pred_labels, labels)).item()
@@ -68,10 +56,10 @@ def inference(model, loader, device):
 
     return accuracy, loss
 
-def exp_details(args, model, loaders, emds):
+def exp_details(args, model, datasets, emds):
     device = str(torch.cuda.get_device_properties(args.device)) if args.device != 'cpu' else 'CPU'
 
-    input_size = (args.train_bs,) + tuple(loaders['train'].dataset[0][0].shape)
+    input_size = (args.train_bs,) + tuple(datasets['train'][0][0].shape)
     summ = str(summary(model, input_size, depth=10, verbose=0, col_names=['output_size','kernel_size','num_params','mult_adds'], device=args.device))
     summ = '            ' + summ.replace('\n', '\n            ')
 
@@ -125,12 +113,12 @@ def exp_details(args, model, loaders, emds):
 
         print('    Dataset:')
         print('        Training:')
-        print('            ' + str(loaders['train'].dataset.dataset).replace('\n','\n            '))
-        if loaders['valid'] is not None:
+        print('            ' + str(datasets['train']).replace('\n','\n            '))
+        if datasets['valid'] is not None:
             print('        Validation:')
-            print('            ' + str(loaders['valid'].dataset.dataset).replace('\n','\n            '))
+            print('            ' + str(datasets['valid']).replace('\n','\n            '))
         print('        Test:')
-        print('            ' + str(loaders['test'].dataset.dataset).replace('\n','\n            '))
+        print('            ' + str(datasets['test']).replace('\n','\n            '))
         print()
 
         print('    Model:')
@@ -140,13 +128,3 @@ def exp_details(args, model, loaders, emds):
         print(summ)
 
     return f.getvalue()
-
-'''
-def update_plot(p, new_xdata, new_ydata):
-        p.set_xdata(np.append(p.get_xdata(), new_xdata))
-        p.set_ydata(np.append(p.get_ydata(), new_ydata))
-        p.axes.relim()
-        p.axes.autoscale_view()
-        plt.draw()
-        plt.pause(0.001)
-'''
