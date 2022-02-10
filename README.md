@@ -67,5 +67,3 @@ PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM,
 * ```--help, -h```:                                                                                               show this help message and exit (default: ```False```)
 * ```--seed SEED```:                                                                                              random seed (default: ```0```)
 * ```--frac_valid FRAC_VALID```:                                                                                  fraction of the training set to use for validation (default: ```0```)
-
-## Experiments

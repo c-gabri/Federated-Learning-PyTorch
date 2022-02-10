@@ -105,7 +105,7 @@ def args_parser():
                         help="random seed")
     args_other.add_argument('--frac_valid', type=float, default=0,
                         help="fraction of the training set to use for validation")
-    args_model.add_argument('--device', type=str, default='cuda:0', choices=['cuda:%d' % device for device in range(device_count())] + ['cpu'],
+    args_other.add_argument('--device', type=str, default='cuda:0', choices=['cuda:%d' % device for device in range(device_count())] + ['cpu'],
                         help="device to train, validate and test with")
 
     args = parser.parse_args()
