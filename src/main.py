@@ -11,12 +11,12 @@ from time import time
 from datetime import timedelta
 
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 
 import datasets, models
 from options import args_parser
 from utils import average_updates, inference, exp_details
-from datasets_utils import get_images_fig, get_dists_fig
+from datasets_utils import Subset, get_images_fig, get_dists_fig
 from sampling import get_splits
 from client import Client
 
@@ -40,10 +40,20 @@ if __name__ == '__main__':
 
     # Load datasets and splits
     datasets = getattr(datasets, args.dataset)(args)
+    num_classes = len(datasets['train'].classes)
     splits, emds, dists = get_splits(datasets, args.num_clients, args.iid, args.balance, args.no_replace)
 
+    datasets_actual = {}
+    for type in splits:
+        if splits[type] is not None:
+            idxs = []
+            for client_id in splits[type]:
+                idxs += splits[type][client_id]
+            datasets_actual[type] = Subset(datasets[type], idxs)
+        else:
+            datasets_actual[type] = None
+
     # Load model
-    num_classes = len(datasets['train'].classes)
     model = getattr(models, args.model)(num_classes, args.model_args).to(args.device)
 
     # Create clients
@@ -65,7 +75,7 @@ if __name__ == '__main__':
     m = max(int(args.frac_clients * args.num_clients), 1)
 
     # Print experiment summary
-    summary = exp_details(args, model, datasets, emds)
+    summary = exp_details(args, model, datasets_actual, emds)
     print('\n'+summary)
 
     # Log experiment summary, client distributions, example images
@@ -77,10 +87,10 @@ if __name__ == '__main__':
         dists_fig = get_dists_fig(dists, args.iid, args.balance)
         logger.add_figure('Distributions', dists_fig)
 
-        images_fig = get_images_fig(datasets, args.train_bs)
+        images_fig = get_images_fig(datasets_actual, args.train_bs)
         logger.add_figure('Images', images_fig)
 
-        input_size = (1,) + tuple(datasets['train'][0][0].shape)
+        input_size = (1,) + tuple(datasets_actual['train'][0][0].shape)
         fake_input = torch.zeros(input_size).to(args.device)
         logger.add_graph(model, fake_input)
     else:

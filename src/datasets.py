@@ -10,27 +10,23 @@ from datasets_utils import get_datasets
 
 def cifar10(args):
     if args.no_augment:
-        train_transforms, test_transforms = [], []
+        train_augment, test_augment = None, None
     else:
-        train_transforms = [
+        train_augment = tvtransforms.Compose([
             tvtransforms.RandomCrop(24),
             tvtransforms.RandomHorizontalFlip(),
             tvtransforms.ColorJitter(brightness=(0.5,1.5), contrast=(0.5,1.5)),
-        ]
-        test_transforms = [
-            tvtransforms.CenterCrop(24)
-        ]
+        ])
+        test_augment = tvtransforms.CenterCrop(24)
 
-    return get_datasets(name='CIFAR10', train_transforms=train_transforms, test_transforms=test_transforms, args=args)
+    return get_datasets(name='CIFAR10', train_augment=train_augment, test_augment=test_augment, args=args)
 
 def mnist(args):
-    train_transforms = []
-    test_transforms = []
+    train_augment, test_augment = None, None
 
-    return get_datasets(name='MNIST', train_transforms=train_transforms, test_transforms=test_transforms, args=args)
+    return get_datasets(name='MNIST', train_augment=train_augment, test_augment=test_augment, args=args)
 
 def fmnist(args):
-    train_transforms = []
-    test_transforms = []
+    train_augment, test_augment = None, None
 
-    return get_datasets(name='FashionMNIST', train_transforms=train_transforms, test_transforms=test_transforms, args=args)
+    return get_datasets(name='FashionMNIST', train_augment=train_augment, test_augment=test_augment, args=args)

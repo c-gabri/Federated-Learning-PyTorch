@@ -38,10 +38,34 @@ def get_split(dataset, q_class, q_client, no_replace=False):
         idxs_class = set((np.array(dataset.targets) == cls).nonzero()[0])
         for client_id in range(num_clients):
             if cls == 0: split[client_id] = []
-            idxs_class_client = set(np.random.choice(list(idxs_class), dist[client_id,cls].item(), replace=not no_replace))
-            split[client_id] += list(idxs_class_client)
+            idxs_class_client = list(np.random.choice(list(idxs_class), dist[client_id,cls].item(), replace=not no_replace))
+            split[client_id] += idxs_class_client
             if no_replace:
-                idxs_class = idxs_class - idxs_class_client
+                idxs_class = idxs_class - set(idxs_class_client)
+
+    # Split without replacement (work in progress)
+    '''
+    q_class_tilde = q_class
+    s = torch.zeros(num_clients,1)
+    dist = torch.zeros(num_clients, num_classes)
+
+    split = {client_id: [] for client_id in range(num_clients)}
+    for cls in range(num_classes):
+        idxs_class = set((np.array(dataset.targets) == cls).nonzero()[0])
+        for client_id in range(num_clients):
+            if len(idxs_class) == 0:
+                s += q_class[:,cls:cls+1]
+                q_class_tilde = q_class/(1 - s)
+                q_class_tilde[:,cls] = 0
+                break
+
+            #n = min(int(q_class_tilde[client_id][cls] * int(q_client[client_id] * len(dataset))), len(idxs_class))
+            n = min(int((q_class_tilde[client_id][cls] * q_client[client_id] * len(dataset)).round()), len(idxs_class))
+            idxs_class_client = list(np.random.choice(list(idxs_class), n, replace=False))
+            split[client_id] += idxs_class_client
+            idxs_class = idxs_class - set(idxs_class_client)
+            dist[client_id, cls] += n
+    '''
 
     return split, emd, dist
 

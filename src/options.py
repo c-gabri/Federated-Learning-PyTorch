@@ -135,7 +135,6 @@ def args_parser():
         args.hetero = 0
         args.iid = float('inf')
         args.balance = float('inf')
-        args.no_replace = True
         args.fedvc_nvc = 0
         args.fedir = False
         args.fedprox_mu = 0
