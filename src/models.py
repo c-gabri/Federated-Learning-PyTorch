@@ -15,14 +15,14 @@ from models_utils import *
 
 # From "Communication-Efficient Learning of Deep Networks from Decentralized Data"
 class mlp_mnist(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(mlp_mnist, self).__init__()
 
         self.resize = Resize((28, 28))
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(28*28, 200),
+            nn.Linear(num_channels*28*28, 200),
             nn.ReLU(),
             nn.Linear(200, 200),
             nn.ReLU(),
@@ -36,13 +36,13 @@ class mlp_mnist(nn.Module):
 
 # From "Communication-Efficient Learning of Deep Networks from Decentralized Data"
 class cnn_mnist(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(cnn_mnist, self).__init__()
 
         self.resize = Resize((28, 28))
 
         self.feature_extractor = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=1),
+            nn.Conv2d(num_channels, 32, kernel_size=5, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2, stride=2, padding=1),
             nn.Conv2d(32, 64, kernel_size=5, stride=1, padding=1),
@@ -65,13 +65,13 @@ class cnn_mnist(nn.Module):
 
 # From "Communication-Efficient Learning of Deep Networks from Decentralized Data" (ported from 2016 TensorFlow CIFAR-10 tutorial)
 class cnn_cifar10(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(cnn_cifar10, self).__init__()
 
         self.resize = Resize((24, 24))
 
         self.feature_extractor = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=5, stride=1, padding='same'),
+            nn.Conv2d(num_channels, 64, kernel_size=5, stride=1, padding='same'),
             nn.ReLU(),
             nn.ZeroPad2d((0, 1, 0, 1)), # Equivalent of TensorFlow padding 'SAME' for MaxPool2d
             nn.MaxPool2d(3, stride=2, padding=0),
@@ -100,7 +100,7 @@ class cnn_cifar10(nn.Module):
 
 # From "Gradient-Based Learning Applied to Document Recognition"
 class lenet5_orig(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(lenet5_orig, self).__init__()
         orig_activation = True
         orig_norm = True
@@ -111,7 +111,7 @@ class lenet5_orig(nn.Module):
         activation = nn.Tanh if orig_activation else nn.ReLU
         activation_constant = 1.7159 if orig_activation else 1
         norm = nn.BatchNorm2d if orig_norm else nn.Identity
-        c1 = nn.Conv2d(1, 6, 5)
+        c1 = nn.Conv2d(num_channels, 6, 5)
         s2 = LeNet5_Orig_S(6) if orig_s else nn.MaxPool2d(2, 2)
         c3 = LeNet5_Orig_C3() if orig_c3 else nn.Conv2d(6, 16, 5)
         s4 = LeNet5_Orig_S(16) if orig_s else nn.MaxPool2d(2, 2)
@@ -153,7 +153,7 @@ class lenet5_orig(nn.Module):
 #     * Normalization placed always before ReLU
 #     * Conv2d-Normalization-ReLU optionally replaced by GhostModule from "GhostNet: More Features from Cheap Operations"
 class lenet5(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(lenet5, self).__init__()
 
         norm = model_args['norm'] if 'norm' in model_args else 'batch'
@@ -170,41 +170,33 @@ class lenet5(nn.Module):
         else:
             raise ValueError("Unsupported norm '%s' for LeNet5")
         if 'ghost' in model_args and model_args['ghost']:
-            #block1 = GhostModule(3, 64, 5)
-            #block2 = GhostModule(64, 64, 5)
-            block1 = GhostModule(3, 64, 5, padding='same', norm=norm)
+            block1 = GhostModule(num_channels, 64, 5, padding='same', norm=norm)
             block2 = GhostModule(64, 64, 5, padding='same', norm=norm)
         else:
             block1 = nn.Sequential(
-                #nn.Conv2d(3, 64, 5),
-                nn.Conv2d(3, 64, 5, padding='same'),
+                nn.Conv2d(num_channels, 64, 5, padding='same'),
                 norm1,
                 nn.ReLU(),
             )
             block2 = nn.Sequential(
-                #nn.Conv2d(64, 64, 5),
                 nn.Conv2d(64, 64, 5, padding='same'),
                 norm2,
                 nn.ReLU(),
             )
 
-        #self.resize = Resize((32, 32))
         self.resize = Resize((24, 24))
 
         self.feature_extractor = nn.Sequential(
             block1,
-            #nn.MaxPool2d(2),
             nn.ZeroPad2d((0, 1, 0, 1)),
             nn.MaxPool2d(3, stride=2, padding=0),
             block2,
-            #nn.MaxPool2d(2),
             nn.ZeroPad2d((0, 1, 0, 1)),
             nn.MaxPool2d(3, stride=2, padding=0),
         )
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            #nn.Linear(64*3*3, 384), # 5*5 if input is 32x32
             nn.Linear(64*6*6, 384), # 5*5 if input is 32x32
             nn.ReLU(),
             nn.Linear(384, 192),
@@ -218,7 +210,7 @@ class lenet5(nn.Module):
         return x
 
 class mnasnet(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(mnasnet, self).__init__()
         width = model_args['width'] if 'width' in model_args else 1
         dropout = model_args['dropout'] if 'dropout' in model_args else 0.2
@@ -251,7 +243,7 @@ class mnasnet(nn.Module):
         return x
 
 class ghostnet(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(ghostnet, self).__init__()
         width = model_args['width'] if 'width' in model_args else 1.0
         dropout = model_args['dropout'] if 'dropout' in model_args else 0.2
@@ -286,7 +278,7 @@ class tinynet(nn.Module):
                 'd': (0.68, 0.54, 0.695),
                 'e': (0.475, 0.51, 0.60)}
 
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(tinynet, self).__init__()
 
         pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
@@ -325,7 +317,7 @@ class tinynet(nn.Module):
 '''
 
 class mobilenet_v3(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(mobilenet_v3, self).__init__()
         variant = model_args['variant'] if 'variant' in model_args else 'small'
         pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
@@ -347,7 +339,7 @@ class mobilenet_v3(nn.Module):
         return x
 
 class efficientnet(nn.Module):
-    def __init__(self, num_classes, model_args):
+    def __init__(self, num_classes, num_channels, model_args):
         super(efficientnet, self).__init__()
         variant = model_args['variant'] if 'variant' in model_args else 'b0'
         pretrained = model_args['pretrained'] if 'pretrained' in model_args else False
@@ -366,49 +358,3 @@ class efficientnet(nn.Module):
         x = self.resize(x)
         x = self.model(x)
         return x
-
-'''
-class lenet5(nn.Module):
-    def __init__(self, num_classes, model_args):
-        super(lenet5, self).__init__()
-        self.feature_extractor = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=6, kernel_size=5, stride=1),
-            nn.ReLU(),
-            nn.AvgPool2d(kernel_size=2),
-            nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5, stride=1),
-            nn.ReLU(),
-            nn.AvgPool2d(kernel_size=2),
-            nn.Conv2d(in_channels=16, out_channels=120, kernel_size=5, stride=1),
-            nn.ReLU()
-        )
-
-        self.classifier = nn.Sequential(
-            nn.Linear(in_features=120, out_features=84),
-            nn.ReLU(),
-            nn.Linear(in_features=84, out_features=10),
-        )
-
-    def forward(self, x):
-        x = self.feature_extractor(x)
-        x = torch.flatten(x, 1)
-        logits = self.classifier(x)
-        return x
-'''
-'''
-class resnet18(nn.Module):
-    def __init__(self, num_classes, model_args):
-        model_fe = tvmodels.quantization.resnet18(pretrained=True, progress=True, quantize=False)
-        self.model = create_combined_model(model_fe)
-
-    def forward(self, x):
-        return self.model(x)
-
-#Quantization of Resnet18
-if args.model == 'resnet':
-    model.fuse_model()
-    model = create_combined_model(model)
-    model[0].qconfig = torch.quantization.default_qat_qconfig
-    model = torch.quantization.prepare_qat(model, inplace=True)
-    for param in model.parameters():
-        param.requires_grad = True
-'''

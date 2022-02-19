@@ -18,18 +18,20 @@ def args_parser():
     usage = 'python main.py [ARGUMENTS]'
     parser = argparse.ArgumentParser(prog='main.py', add_help=False, usage=usage, formatter_class=lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=1000, width=1000))
 
-    # Federated setting
+    # Dataset and split
     args_setting = parser.add_argument_group('federated setting arguments')
     args_setting.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction) if f[1].__module__ == 'datasets'],
                         help="dataset, place yours in datasets.py")
-    args_setting.add_argument('--no_augment', action='store_true', default=False,
-                        help="don't augment dataset")
+    args_setting.add_argument('--dataset_args', type=str, default='augment=True',
+                        help="dataset arguments")
+    args_setting.add_argument('--frac_valid', type=float, default=0,
+                        help="fraction of the training set to use for validation")
+    args_setting.add_argument('--num_clients', '-K', type=int, default=100,
+                        help="number of clients")
     args_setting.add_argument('--iid', type=float, default='inf',
                         help="identicalness of client distributions, 'inf' for IID")
     args_setting.add_argument('--balance', type=float, default='inf',
                         help="balance of client distributions, 'inf' for balanced")
-    args_setting.add_argument('--no_replace', action='store_true', default=False,
-                        help="try to split the dataset among clients without replacement")
     args_setting.add_argument('--hetero', type=float, default=0,
                         help="system heterogeneity")
 
@@ -39,8 +41,6 @@ def args_parser():
                         help="communication rounds")
     args_algo.add_argument('--iters', type=int, default=None,
                         help="total iterations, overrides --rounds")
-    args_algo.add_argument('--num_clients', '-K', type=int, default=100,
-                        help="number of clients")
     args_algo.add_argument('--frac_clients', '-C', type=float, default=0.1,
                         help="fraction of clients selected at each round")
     args_algo.add_argument('--epochs', '-E', type=int, default=5,
@@ -101,10 +101,8 @@ def args_parser():
     args_other = parser.add_argument_group('other arguments')
     args_other.add_argument('--help', '-h', action='store_true', default=False,
                         help="show this help message and exit")
-    args_other.add_argument('--seed', type=int, default=0,
+    args_other.add_argument('--seed', type=int, default=None,
                         help="random seed")
-    args_other.add_argument('--frac_valid', type=float, default=0,
-                        help="fraction of the training set to use for validation")
     args_other.add_argument('--device', type=str, default='cuda:0', choices=['cuda:%d' % device for device in range(device_count())] + ['cpu'],
                         help="device to train, validate and test with")
 
@@ -119,6 +117,7 @@ def args_parser():
     if args.dir is None:
         args.dir = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
+    args.dataset_args = args_str_to_dict(args.dataset_args)
     args.model_args = args_str_to_dict(args.model_args)
     args.optim_args = args_str_to_dict(args.optim_args)
     args.sched_args = args_str_to_dict(args.sched_args)

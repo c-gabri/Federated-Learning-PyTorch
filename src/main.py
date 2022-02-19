@@ -16,8 +16,8 @@ from torch.utils.data import DataLoader
 import datasets, models
 from options import args_parser
 from utils import average_updates, inference, exp_details
-from datasets_utils import Subset, get_images_fig, get_dists_fig
-from sampling import get_splits
+from datasets_utils import Subset, get_datasets_fig
+from sampling import get_splits, get_splits_fig
 from client import Client
 
 
@@ -39,33 +39,34 @@ if __name__ == '__main__':
         random.seed(args.seed)
 
     # Load datasets and splits
-    datasets = getattr(datasets, args.dataset)(args)
-    num_classes = len(datasets['train'].classes)
-    splits, emds, dists = get_splits(datasets, args.num_clients, args.iid, args.balance, args.no_replace)
+    datasets = getattr(datasets, args.dataset)(args, args.dataset_args)
+    splits = get_splits(datasets, args.num_clients, args.iid, args.balance)
 
     datasets_actual = {}
     for type in splits:
         if splits[type] is not None:
             idxs = []
-            for client_id in splits[type]:
-                idxs += splits[type][client_id]
+            for client_id in splits[type].idxs:
+                idxs += splits[type].idxs[client_id]
             datasets_actual[type] = Subset(datasets[type], idxs)
         else:
             datasets_actual[type] = None
 
     # Load model
-    model = getattr(models, args.model)(num_classes, args.model_args).to(args.device)
+    num_classes = len(datasets_actual['train'].classes)
+    num_channels = datasets_actual['train'][0][0].shape[0]
+    model = getattr(models, args.model)(num_classes, num_channels, args.model_args).to(args.device)
 
     # Create clients
     clients = []
     for client_id in range(args.num_clients):
-        client_idxs = {key:splits[key][client_id] if splits[key] is not None else None for key in splits.keys()}
+        client_idxs = {type: splits[type].idxs[client_id] if splits[type] is not None else None for type in splits}
         clients.append(Client(args=args, id=client_id, datasets=datasets, idxs=client_idxs, model=deepcopy(model)))
 
     # Set client sampling probabilities
     if args.fedvc_nvc > 0:
         # Proportional to the number of examples (FedVC)
-        p_clients = np.array([len(splits['train'][client_idx]) for client_idx in splits['train']])
+        p_clients = np.array([len(splits['train'].idxs[client_id]) for client_id in splits['train'].idxs])
         p_clients = p_clients / p_clients.sum()
     else:
         # Uniform
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     m = max(int(args.frac_clients * args.num_clients), 1)
 
     # Print experiment summary
-    summary = exp_details(args, model, datasets_actual, emds)
+    summary = exp_details(args, model, datasets_actual, splits)
     print('\n'+summary)
 
     # Log experiment summary, client distributions, example images
@@ -84,11 +85,11 @@ if __name__ == '__main__':
         logger = SummaryWriter('runs/' + args.dir)
         logger.add_text('Experiment summary', re.sub('^', '    ', re.sub('\n', '\n    ', summary)))
 
-        dists_fig = get_dists_fig(dists, args.iid, args.balance)
-        logger.add_figure('Distributions', dists_fig)
+        splits_fig = get_splits_fig(splits, args.iid, args.balance)
+        logger.add_figure('Splits', splits_fig)
 
-        images_fig = get_images_fig(datasets_actual, args.train_bs)
-        logger.add_figure('Images', images_fig)
+        datasets_fig = get_datasets_fig(datasets_actual, args.train_bs)
+        logger.add_figure('Datasets', datasets_fig)
 
         input_size = (1,) + tuple(datasets_actual['train'][0][0].shape)
         fake_input = torch.zeros(input_size).to(args.device)
@@ -146,14 +147,14 @@ if __name__ == '__main__':
                 valid_acc_client, _ = clients[client_id].inference(model, type='valid', device=args.device)
                 test_acc_client, _ = clients[client_id].inference(model, type='test', device=args.device)
                 if train_acc_client is not None:
-                    train_acc_avg += train_acc_client * len(splits['train'][client_id])
-                    train_num_examples += len(splits['train'][client_id])
+                    train_acc_avg += train_acc_client * len(splits['train'].idxs[client_id])
+                    train_num_examples += len(splits['train'].idxs[client_id])
                 if valid_acc_client is not None:
-                    valid_acc_avg += valid_acc_client * len(splits['valid'][client_id])
-                    valid_num_examples += len(splits['valid'][client_id])
+                    valid_acc_avg += valid_acc_client * len(splits['valid'].idxs[client_id])
+                    valid_num_examples += len(splits['valid'].idxs[client_id])
                 if test_acc_client is not None:
-                    test_acc_avg += test_acc_client * len(splits['test'][client_id])
-                    test_num_examples += len(splits['test'][client_id])
+                    test_acc_avg += test_acc_client * len(splits['test'].idxs[client_id])
+                    test_num_examples += len(splits['test'].idxs[client_id])
             train_acc_avg /= train_num_examples
             if valid_num_examples != 0:
                 valid_acc_avg /= valid_num_examples
@@ -183,8 +184,8 @@ if __name__ == '__main__':
     for client_id in range(len(clients)):
         test_acc_client, _ = clients[client_id].inference(model, type='test', device=args.device)
         if test_acc_client is not None:
-            test_acc_avg += test_acc_client * len(splits['test'][client_id])
-            test_num_examples += len(splits['test'][client_id])
+            test_acc_avg += test_acc_client * len(splits['test'].idxs[client_id])
+            test_num_examples += len(splits['test'].idxs[client_id])
     test_acc_avg /= test_num_examples
 
     test_end_time = time()

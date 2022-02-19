@@ -8,8 +8,8 @@ import torchvision.transforms as tvtransforms
 from datasets_utils import get_datasets
 
 
-def cifar10(args):
-    if args.no_augment:
+def cifar10(args, dataset_args):
+    if 'augment' in dataset_args and not dataset_args['augment']:
         train_augment, test_augment = None, None
     else:
         train_augment = tvtransforms.Compose([

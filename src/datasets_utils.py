@@ -18,7 +18,9 @@ import models
 class Subset(torch.utils.data.Dataset):
     def __init__(self, dataset, idxs, augment=None, normalize=None, name=None):
         self.name = name if name is not None else dataset.name
-        self.data = dataset.data[idxs]
+        #self.data = dataset.data[idxs]
+        self.dataset = dataset.dataset if 'dataset' in vars(dataset) else dataset
+        self.idxs = idxs
         self.targets = np.array(dataset.targets)[idxs]
         self.classes = dataset.classes
 
@@ -33,12 +35,13 @@ class Subset(torch.utils.data.Dataset):
             self.normalize = normalize
 
     def __getitem__(self, idx, augmented=True, normalized=True):
-        example = tvtransforms.ToTensor()(self.data[idx])
+        example, target = self.dataset[self.idxs[idx]]
+        example = tvtransforms.ToTensor()(example)
         if augmented and self.augment is not None:
             example = self.augment(example)
         if normalized and self.normalize is not None:
             example = self.normalize(example)
-        target = self.targets[idx]
+        #target = self.targets[idx]
         return example, target
 
     def __len__(self):
@@ -57,6 +60,7 @@ def get_mean_std(dataset, batch_size):
     total = 0
     mean = 0.
     var = 0.
+
     for examples, _ in loader:
         # Rearrange batch to be the shape of [B, C, W * H]
         examples = examples.view(examples.size(0), examples.size(1), -1)
@@ -100,7 +104,7 @@ def get_datasets(name, train_augment, test_augment, args):
 
     return {'train':train_dataset, 'valid':valid_dataset, 'test':test_dataset}
 
-def get_images_fig(datasets, num_examples):
+def get_datasets_fig(datasets, num_examples):
     types, titles = [], []
     for type in datasets:
         if datasets[type] is not None:
@@ -126,37 +130,5 @@ def get_images_fig(datasets, num_examples):
 
     fig.tight_layout()
     fig.set_size_inches(4*len(types), 8)
-
-    return fig
-
-def get_dists_fig(dists, iid, balance):
-    types, titles = [], []
-    for type in dists:
-        if dists[type] is not None:
-            types.append(type)
-            titles.append(type.capitalize())
-    fig, ax = plt.subplots(1, len(types))
-
-    iid_str = '∞' if iid == float('inf') else '%g' % iid
-    balance_str = '∞' if balance == float('inf') else '%g' % balance
-
-    num_clients, num_classes = dists['train'].shape
-    y = torch.arange(num_clients)
-    for i, type in enumerate(types):
-        left = torch.zeros(num_clients)
-        for c in range(num_classes):
-            ax[i].barh(y, dists[type][:,c], left=left, height=1)
-            left += dists[type][:,c]
-        ax[i].set_xlim((0,max(left)))
-        ax[i].set_xlabel('Class distribution')
-        ax[i].set_title(titles[i])
-        if i == 0:
-            ax[i].set_ylabel('Client')
-        else:
-            ax[i].set_yticks([])
-
-    fig.suptitle('$α_{class} = %s, α_{client} = $%s' % (iid_str, balance_str))
-    fig.tight_layout()
-    fig.set_size_inches(4*len(types), 4)
 
     return fig

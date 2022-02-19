@@ -56,7 +56,7 @@ def inference(model, loader, device):
 
     return accuracy, loss
 
-def exp_details(args, model, datasets, emds):
+def exp_details(args, model, datasets, splits):
     device = str(torch.cuda.get_device_properties(args.device)) if args.device != 'cpu' else 'CPU'
 
     input_size = (args.train_bs,) + tuple(datasets['train'][0][0].shape)
@@ -100,8 +100,8 @@ def exp_details(args, model, datasets, emds):
             print(f'        Fraction of clients: {args.frac_clients}')
             print(f'        Server learning rate: {args.server_lr}')
             print(f'        Server momentum (FedAvgM): {args.server_momentum}')
-            print(f'        IID: {args.iid} (EMD = {emds["train"]["class"]})')
-            print(f'        Balance: {args.balance} (EMD = {emds["train"]["client"]})')
+            print(f'        IID: {args.iid} (EMD = {splits["train"].emd["class"]})')
+            print(f'        Balance: {args.balance} (EMD = {splits["train"].emd["client"]})')
             print(f'        System heterogeneity: {args.hetero}')
             print(f'        FedIR: {args.fedir}')
             print(f'        Virtual client size (FedVC): {args.fedvc_nvc}')
