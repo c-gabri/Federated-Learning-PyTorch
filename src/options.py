@@ -18,24 +18,24 @@ def args_parser():
     usage = 'python main.py [ARGUMENTS]'
     parser = argparse.ArgumentParser(prog='main.py', add_help=False, usage=usage, formatter_class=lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=1000, width=1000))
 
-    # Dataset and split
-    args_setting = parser.add_argument_group('federated setting arguments')
-    args_setting.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction) if f[1].__module__ == 'datasets'],
+    # Dataset and split arguments
+    args_dataset_split = parser.add_argument_group('dataset and split arguments')
+    args_dataset_split.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction) if f[1].__module__ == 'datasets'],
                         help="dataset, place yours in datasets.py")
-    args_setting.add_argument('--dataset_args', type=str, default='augment=True',
+    args_dataset_split.add_argument('--dataset_args', type=str, default='augment=True',
                         help="dataset arguments")
-    args_setting.add_argument('--frac_valid', type=float, default=0,
+    args_dataset_split.add_argument('--frac_valid', type=float, default=0,
                         help="fraction of the training set to use for validation")
-    args_setting.add_argument('--num_clients', '-K', type=int, default=100,
+    args_dataset_split.add_argument('--num_clients', '-K', type=int, default=100,
                         help="number of clients")
-    args_setting.add_argument('--iid', type=float, default='inf',
+    args_dataset_split.add_argument('--iid', type=float, default='inf',
                         help="identicalness of client distributions, 'inf' for IID")
-    args_setting.add_argument('--balance', type=float, default='inf',
+    args_dataset_split.add_argument('--balance', type=float, default='inf',
                         help="balance of client distributions, 'inf' for balanced")
-    args_setting.add_argument('--hetero', type=float, default=0,
+    args_dataset_split.add_argument('--hetero', type=float, default=0,
                         help="system heterogeneity")
 
-    # Algorithm
+    # Algorithm arguments
     args_algo = parser.add_argument_group('algorithm arguments')
     args_algo.add_argument('--rounds', type=int, default=200,
                         help="communication rounds")
@@ -66,25 +66,22 @@ def args_parser():
     args_algo.add_argument('--server_lr', type=float, default=1,
                         help="server learning rate")
 
-    # Optimizer and scheduler
-    args_optim_sched = parser.add_argument_group('optimizer and scheduler arguments')
-    args_optim_sched.add_argument('--optim', type=str, default='sgd', choices=[f[0] for f in getmembers(optimizers, isfunction)],
+    # Model, optimizer and scheduler arguments
+    args_model_optim_sched = parser.add_argument_group('model, optimizer and scheduler arguments')
+    args_model_optim_sched.add_argument('--model', type=str, default='lenet5', choices=[c[0] for c in getmembers(models, isclass) if c[1].__module__ == 'models'],
+                        help="model, place yours in models.py")
+    args_model_optim_sched.add_argument('--model_args', type=str, default='ghost=True,norm=None',
+                        help="model arguments")
+    args_model_optim_sched.add_argument('--optim', type=str, default='sgd', choices=[f[0] for f in getmembers(optimizers, isfunction)],
                         help="optimizer, place yours in optimizers.py")
-    args_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01,momentum=0,weight_decay=4e-4',
+    args_model_optim_sched.add_argument('--optim_args', type=str, default='lr=0.01,momentum=0,weight_decay=4e-4',
                         help="optimizer arguments")
-    args_optim_sched.add_argument('--sched', type=str, default='fixed', choices=[c[0] for c in getmembers(schedulers, isclass) if c[1].__module__ == 'schedulers'],
+    args_model_optim_sched.add_argument('--sched', type=str, default='fixed', choices=[c[0] for c in getmembers(schedulers, isclass) if c[1].__module__ == 'schedulers'],
                         help="scheduler, place yours in schedulers.py")
-    args_optim_sched.add_argument('--sched_args', type=str, default=None,
+    args_model_optim_sched.add_argument('--sched_args', type=str, default=None,
                         help="scheduler arguments")
 
-    # Model
-    args_model = parser.add_argument_group('model arguments')
-    args_model.add_argument('--model', type=str, default='lenet5', choices=[c[0] for c in getmembers(models, isclass) if c[1].__module__ == 'models'],
-                        help="model, place yours in models.py")
-    args_model.add_argument('--model_args', type=str, default='ghost=True,norm=None',
-                        help="model arguments")
-
-    # Output
+    # Output arguments
     args_output = parser.add_argument_group('output arguments')
     args_output.add_argument('--quiet', '-q', action='store_true', default=False,
                         help="less verbose output")

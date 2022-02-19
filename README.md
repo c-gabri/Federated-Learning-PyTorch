@@ -23,18 +23,18 @@ To put it simply, the future of FL has never looked brighter since its introduct
 ## Usage
 ```python main.py [ARGUMENTS]```
 
-### Federated setting arguments:
+### Dataset and split arguments:
 * ```--dataset {cifar10,fmnist,mnist}```:                                                                         dataset, place yours in datasets.py (default: ```cifar10```)
-* ```--no_augment```:                                                                                             don't augment dataset (default: ```False```)
+* ```--dataset_args DATASET_ARGS```:                                                                              dataset arguments (default: ```augment=True```)
+* ```--frac_valid FRAC_VALID```:                                                                                  fraction of the training set to use for validation (default: ```0```)
+* ```--num_clients NUM_CLIENTS, -K NUM_CLIENTS```:                                                                number of clients (default: ```100```)
 * ```--iid IID```:                                                                                                identicalness of client distributions, 'inf' for IID (default: ```inf```)
 * ```--balance BALANCE```:                                                                                        balance of client distributions, 'inf' for balanced (default: ```inf```)
-* ```--no_replace```:                                                                                             try to split the dataset among clients without replacement (default: ```False```)
 * ```--hetero HETERO```:                                                                                          system heterogeneity (default: ```0```)
 
 ### Algorithm arguments:
 * ```--rounds ROUNDS```:                                                                                          communication rounds (default: ```200```)
 * ```--iters ITERS```:                                                                                            total iterations, overrides --rounds (default: ```None```)
-* ```--num_clients NUM_CLIENTS, -K NUM_CLIENTS```:                                                                number of clients (default: ```100```)
 * ```--frac_clients FRAC_CLIENTS, -C FRAC_CLIENTS```:                                                             fraction of clients selected at each round (default: ```0.1```)
 * ```--epochs EPOCHS, -E EPOCHS```:                                                                               number of local epochs (or global epochs when --centralized) (default: ```5```)
 * ```--train_bs TRAIN_BS, -B TRAIN_BS```:                                                                         training batch size (default: ```50```)
@@ -48,16 +48,13 @@ To put it simply, the future of FL has never looked brighter since its introduct
 * ```--fedsgd```:                                                                                                 use FedSGD algorithm (default: ```False```)
 * ```--server_lr SERVER_LR```:                                                                                    server learning rate (default: ```1```)
 
-### Optimizer and scheduler arguments:
-* ```--optim {adam,sgd}```:                                                                                       optimizer, place yours in optimizers.py (default: ```sgd```)
-* ```--optim_args OPTIM_ARGS```:                                                                                  optimizer arguments (default: ```lr=0.01,momentum=0,weight_decay=4e-4```)
-* ```--sched {const,fixed,plateau_loss,plateau_loss_avg,step}```:                                                 scheduler, place yours in schedulers.py (default: ```fixed```)
-* ```--sched_args SCHED_ARGS```:                                                                                  scheduler arguments (default: ```None```)
-
-### Model arguments:
+### Model, optimizer and scheduler arguments:
 * ```--model {cnn_cifar10,cnn_mnist,efficientnet,ghostnet,lenet5,lenet5_orig,mlp_mnist,mnasnet,mobilenet_v3}```:  model, place yours in models.py (default: ```lenet5```)
 * ```--model_args MODEL_ARGS```:                                                                                  model arguments (default: ```ghost=True,norm=None```)
-* ```--device {cuda:0,cpu}```:                                                                                    device to train, validate and test with (default: ```cuda:0```)
+* ```--optim {adam,sgd}```:                                                                                       optimizer, place yours in optimizers.py (default: ```sgd```)
+* ```--optim_args OPTIM_ARGS```:                                                                                  optimizer arguments (default: ```lr=0.01,momentum=0,weight_decay=4e-4```)
+* ```--sched {const,fixed,plateau_loss,step}```:                                                                  scheduler, place yours in schedulers.py (default: ```fixed```)
+* ```--sched_args SCHED_ARGS```:                                                                                  scheduler arguments (default: ```None```)
 
 ### Output arguments:
 * ```--quiet, -q```:                                                                                              less verbose output (default: ```False```)
@@ -68,8 +65,8 @@ To put it simply, the future of FL has never looked brighter since its introduct
 
 ### Other arguments:
 * ```--help, -h```:                                                                                               show this help message and exit (default: ```False```)
-* ```--seed SEED```:                                                                                              random seed (default: ```0```)
-* ```--frac_valid FRAC_VALID```:                                                                                  fraction of the training set to use for validation (default: ```0```)
+* ```--seed SEED```:                                                                                              random seed (default: ```None```)
+* ```--device {cuda:0,cpu}```:                                                                                    device to train, validate and test with (default: ```cuda:0```)
 
 ## References
 * [1] [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedSGD, FedAvg
