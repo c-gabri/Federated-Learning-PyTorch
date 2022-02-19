@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from utils import inference
 import optimizers, schedulers
 
-
+# 
 class Client(object):
     def __init__(self, args, id, datasets, idxs, model):
         self.args = args
