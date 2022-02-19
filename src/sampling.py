@@ -58,8 +58,8 @@ def get_split(dataset, q_class, q_client):
     num_images_clients = (q_client * len(dataset)).round().to(int)
     delta_images = len(dataset) - num_images_clients.sum().item()
     client_id = 0
-    for i in range(delta_images):
-        num_images_clients[client_id % num_clients] += 1
+    for i in range(abs(delta_images)):
+        num_images_clients[client_id % num_clients] += np.sign(delta_images)
         client_id += 1
 
     classes = set(range(num_classes))
