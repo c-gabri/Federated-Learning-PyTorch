@@ -114,8 +114,10 @@ other arguments:
 * [5] [GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf): GhostModule
 * [6] [TensorFlow Convolutional Neural Network Tutorial (2016)](https://github.com/tensorflow/models/blob/86ecc9730d751c1f72e3bfecac958166390f4125/tutorials/image/cifar10/cifar10.py): LeNet5
 
-## To do
-* [x] Log stats per iteration
-* [x] Better centralized-federated integration
-* [x] Save and resume
-* [ ] Allow resuming with different arguments
+## Screenshots
+<img src="screenshots/tensorboard1.png?raw=true" width="100%" title="Tensorboard: scalars and images">
+<p align=center>
+  <img src="screenshots/tensorboard2.png?raw=true" width="33%" align="top" title="Tensorboard: model">
+  <img src="screenshots/output1.png?raw=true" width="33%" align="top" title="Output: summary">
+  <img src="screenshots/output2.png?raw=true" width="33%" align="top" title="Output: training">
+</p>
