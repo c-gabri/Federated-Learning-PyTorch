@@ -84,7 +84,6 @@ model, optimizer and scheduler arguments:
                         scheduler arguments (default: None)
 
 output arguments:
-  --quiet, -q           less verbose output (default: False)
   --client_stats_every CLIENT_STATS_EVERY
                         compute and print client statistics every
                         CLIENT_STATS_EVERY batches, 0 for every epoch
@@ -92,9 +91,11 @@ output arguments:
   --server_stats_every SERVER_STATS_EVERY
                         compute, print and log server statistics every
                         SERVER_STATS_EVERY rounds (default: 1)
-  --dir DIR             custom tensorboard logs and checkpoint directory
-                        (default: None)
-  --no_log              disable tensorboard logging (default: False)
+  --name NAME           log to runs/NAME and save checkpoints to save/NAME,
+                        None for YYYY-MM-DD_HH-MM-SS (default: None)
+  --no_log              disable logging (default: False)
+  --no_save             disable checkpoints (default: False)
+  --quiet, -q           less verbose output (default: False)
 
 other arguments:
   --seed SEED           random seed (default: 0)
@@ -102,7 +103,8 @@ other arguments:
                         device to train, validate and test with (default:
                         cuda:0)
   --test_bs TEST_BS     test and validation batch size (default: 256)
-  --resume RESUME       resume from checkpoint (default: None)
+  --resume              resume training from save/NAME checkpoint (default:
+                        False)
   --help, -h            show this help message and exit (default: False)
 ```
 
