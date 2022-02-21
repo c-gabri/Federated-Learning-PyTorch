@@ -117,7 +117,7 @@ other arguments:
 ## Screenshots
 <img src="screenshots/tensorboard1.png?raw=true" width="100%" title="Tensorboard: scalars and images">
 <p align=center>
-  <img src="screenshots/tensorboard2.png?raw=true" width="33%" align="top" title="Tensorboard: model">
-  <img src="screenshots/output1.png?raw=true" width="33%" align="top" title="Output: summary">
-  <img src="screenshots/output2.png?raw=true" width="33%" align="top" title="Output: training">
+  <img src="screenshots/tensorboard2.png?raw=true" width="32%" align="top" title="Tensorboard: model">
+  <img src="screenshots/output1.png?raw=true" width="32%" align="top" title="Output: summary">
+  <img src="screenshots/output2.png?raw=true" width="32%" align="top" title="Output: training">
 </p>
