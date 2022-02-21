@@ -117,8 +117,6 @@ def exp_details(args, model, datasets, splits):
         device = str(torch.cuda.get_device_properties(args.device))
         device = (', ' + re.sub('_CudaDeviceProperties\(|\)', '', device)).replace(', ', '\n            ')
 
-    #device = str(torch.cuda.get_device_properties(args.device)) if args.device != 'cpu' else 'CPU'
-
     input_size = (args.train_bs,) + tuple(datasets['train'][0][0].shape)
     summ = str(summary(model, input_size, depth=10, verbose=0, col_names=['output_size','kernel_size','num_params','mult_adds'], device=args.device))
     summ = '        ' + summ.replace('\n', '\n        ')

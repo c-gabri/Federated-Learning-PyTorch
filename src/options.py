@@ -100,16 +100,18 @@ def args_parser():
 
     # Output arguments
     args_output = parser.add_argument_group('output arguments')
-    args_output.add_argument('--quiet', '-q', action='store_true', default=False,
-                        help="less verbose output")
     args_output.add_argument('--client_stats_every', type=int, default=0,
                         help="compute and print client statistics every CLIENT_STATS_EVERY batches, 0 for every epoch")
     args_output.add_argument('--server_stats_every', type=int, default=1,
                         help="compute, print and log server statistics every SERVER_STATS_EVERY rounds")
-    args_output.add_argument('--dir', type=str, default=None,
-                        help="custom tensorboard logs and checkpoint directory")
+    args_output.add_argument('--name', type=str, default=None,
+                        help="log to runs/NAME and save checkpoints to save/NAME, None for YYYY-MM-DD_HH-MM-SS")
     args_output.add_argument('--no_log', action='store_true', default=False,
-                        help="disable tensorboard logging")
+                        help="disable logging")
+    args_output.add_argument('--no_save', action='store_true', default=False,
+                        help="disable checkpoints")
+    args_output.add_argument('--quiet', '-q', action='store_true', default=False,
+                        help="less verbose output")
 
     # Other arguments
     args_other = parser.add_argument_group('other arguments')
@@ -119,8 +121,8 @@ def args_parser():
                         help="device to train, validate and test with")
     args_other.add_argument('--test_bs', type=int, default=256,
                         help="test and validation batch size")
-    args_other.add_argument('--resume', type=str, default=None,
-                        help="resume from checkpoint")
+    args_other.add_argument('--resume', action='store_true', default=False,
+                        help="resume training from save/NAME checkpoint")
     args_other.add_argument('--help', '-h', action='store_true', default=False,
                         help="show this help message and exit")
 
@@ -132,8 +134,8 @@ def args_parser():
     if args.iters is not None:
         args.rounds = sys.maxsize
 
-    if args.dir is None:
-        args.dir = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    if args.name is None:
+        args.name = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
     args.dataset_args = args_str_to_dict(args.dataset_args)
     args.model_args = args_str_to_dict(args.model_args)

@@ -1,7 +1,0 @@
-.DS_Store
-*.swp
-*.bak
-data
-logs
-save
-__pycache__

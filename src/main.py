@@ -42,22 +42,26 @@ if __name__ == '__main__':
     # Start timer
     start_time = time()
 
-    # Parse arguments
+    # Parse arguments and create/load checkpoint
     args = args_parser()
-
-    resume = args.resume
-    checkpoint = torch.load(f'save/{resume}') if resume is not None else {}
-    if resume is None:
+    if not args.resume:
+        checkpoint = {}
         checkpoint['args'] = args
     else:
+        checkpoint = torch.load(f'save/{args.name}')
+        rounds = args.rounds
+        iters = args.iters
         args = checkpoint['args']
+        args.rounds = rounds
+        args.iters = iters
+        args.resume = True
 
     ## Initialize RNGs and ensure reproducibility
     if args.seed is not None:
         environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
         torch.backends.cudnn.benchmark = False
         torch.use_deterministic_algorithms(True)
-        if resume is None:
+        if not args.resume:
             torch.manual_seed(args.seed)
             np.random.seed(args.seed)
             random.seed(args.seed)
@@ -67,7 +71,7 @@ if __name__ == '__main__':
             random.setstate(checkpoint['python_rng_state'])
 
     # Load datasets and splits
-    if resume is None:
+    if not args.resume:
         datasets = getattr(datasets, args.dataset)(args, args.dataset_args)
         splits = get_splits(datasets, args.num_clients, args.iid, args.balance)
         datasets_actual = {}
@@ -87,7 +91,7 @@ if __name__ == '__main__':
     acc_types = ['train', 'test'] if datasets_actual['valid'] is None else ['train', 'valid']
 
     # Load model
-    if resume is None:
+    if not args.resume:
         num_classes = len(datasets_actual['train'].classes)
         num_channels = datasets_actual['train'][0][0].shape[0]
         model = getattr(models, args.model)(num_classes, num_channels, args.model_args).to(args.device)
@@ -95,7 +99,7 @@ if __name__ == '__main__':
         model = checkpoint['model']
 
     # Load optimizer and scheduler
-    if resume is None:
+    if not args.resume:
         optim = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
         sched = getattr(schedulers, args.sched)(optim, args.sched_args)
     else:
@@ -103,7 +107,7 @@ if __name__ == '__main__':
         sched = checkpoint['sched']
 
     # Create clients
-    if resume is None:
+    if not args.resume:
         clients = []
         for client_id in range(args.num_clients):
             client_idxs = {dataset_type: splits[dataset_type].idxs[client_id] if splits[dataset_type] is not None else None for dataset_type in splits}
@@ -130,8 +134,8 @@ if __name__ == '__main__':
 
     # Log experiment summary, client distributions, example images
     if not args.no_log:
-        logger = SummaryWriter('runs/' + args.dir)
-        if resume is None:
+        logger = SummaryWriter(f'runs/{args.name}')
+        if not args.resume:
             logger.add_text('Experiment summary', re.sub('^', '    ', re.sub('\n', '\n    ', summary)))
 
             splits_fig = get_splits_fig(splits, args.iid, args.balance)
@@ -146,7 +150,7 @@ if __name__ == '__main__':
     else:
         logger = None
 
-    if resume is None:
+    if not args.resume:
         # Compute initial average accuracies
         acc_avg = get_acc_avg(acc_types, clients, model, args.device)
         acc_avg_best = acc_avg[acc_types[1]]
@@ -163,7 +167,7 @@ if __name__ == '__main__':
     init_end_time = time()
 
     # Train server model
-    if resume is None:
+    if not args.resume:
         last_round = -1
         iter = 0
         v = None
@@ -230,7 +234,7 @@ if __name__ == '__main__':
                     checkpoint['torch_rng_state'] = torch.get_rng_state()
                     checkpoint['numpy_rng_state'] = np.random.get_state()
                     checkpoint['python_rng_state'] = random.getstate()
-                    torch.save(checkpoint, f'save/{args.dir}')
+                    torch.save(checkpoint, f'save/{args.name}')
 
         # Print and log round stats
         if round % args.server_stats_every == 0:
