@@ -1,25 +1,38 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.8.10
 
+'''
+    <one line to give the program's name and a brief idea of what it does.>
+    Copyright (C) 2022  <name of author>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program. If not, see <https://www.gnu.org/licenses/>.
+'''
 
 from copy import deepcopy
+
 import matplotlib.pyplot as plt
 import numpy as np
-
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, Dataset, Subset
 
 from utils import inference
-import optimizers, schedulers
 
 
 class Client(object):
-    def __init__(self, args, id, datasets, idxs, model):
+    def __init__(self, args, datasets, idxs):
         self.args = args
-        self.id = id
-        self.total_iters = 0
 
         # Create dataloaders
         self.train_bs = self.args.train_bs if self.args.train_bs > 0 else len(idxs['train'])
@@ -27,11 +40,6 @@ class Client(object):
         self.loaders['train'] = DataLoader(Subset(datasets['train'], idxs['train']), batch_size=self.train_bs, shuffle=True) if len(idxs['train']) > 0 else None
         self.loaders['valid'] = DataLoader(Subset(datasets['valid'], idxs['valid']), batch_size=args.test_bs, shuffle=False) if idxs['valid'] is not None and len(idxs['valid']) > 0 else None
         self.loaders['test'] = DataLoader(Subset(datasets['test'], idxs['test']), batch_size=args.test_bs, shuffle=False) if len(idxs['test']) > 0 else None
-
-        # Set optimizer and scheduler
-        self.model = model
-        self.optimizer = getattr(optimizers, self.args.optim)(self.model.parameters(), self.args.optim_args)
-        self.scheduler = getattr(schedulers, self.args.sched)(self.optimizer, self.args.sched_args)
 
         # Set criterion
         if args.fedir:
@@ -45,21 +53,17 @@ class Client(object):
             weight = None
         self.criterion = CrossEntropyLoss(weight=weight)
 
-    def train(self, model_state_dict, round, total_iters, i, m, device, logger):
+    def train(self, model, optim, device):
         # Drop client if train set is empty
         if self.loaders['train'] is None:
-            if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | No data!')
+            if not self.args.quiet: print(f'            No data!')
             return None, 0, 0, None
 
-        # Determine if client is a straggler based on system heterogeneity
+        # Determine if client is a straggler and drop it if required
         straggler = np.random.binomial(1, self.args.hetero)
-
         if straggler and self.args.drop_stragglers:
-            # Drop straggler if required
-            if not self.args.quiet: print(f'    Round: {round+1}/{self.args.rounds} | Client: {self.id} ({i+1}/{m}) | Dropped straggler!')
+            if not self.args.quiet: print(f'            Dropped straggler!')
             return None, 0, 0, None
-
-        # Determine number of local epochs
         epochs = np.random.randint(1, self.args.epochs) if straggler else self.args.epochs
 
         # Create training loader
@@ -74,124 +78,58 @@ class Client(object):
             # No Virtual Client
             train_loader = self.loaders['train']
 
-        loss_every = self.args.loss_every if self.args.loss_every > 0 else len(train_loader)
-        acc_every = self.args.acc_every if self.args.acc_every > 0 else len(train_loader)
-
-        # Load new model
-        self.model.load_state_dict(model_state_dict)
-        self.model.to(device)
-        self.criterion.to(device)
-
-        # Log initial values
-        if self.args.centralized and logger is not None:
-            train_acc, _ = self.inference(self.model, type='train', device=device)
-            valid_acc, _ = self.inference(self.model, type='valid', device=device)
-            test_acc, _ = self.inference(self.model, type='test', device=device)
-            if valid_acc is not None:
-                logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, 0)
-            else:
-                logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Test': test_acc}, 0)
-            logger.add_scalar(f'Client {self.id}: Average loss', torch.nan, 0)
-            logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': self.optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(self.optimizer.state_dict()['param_groups']))}, self.total_iters)
+        loss_every = self.args.loss_every if self.args.loss_every > 0 and self.args.loss_every < len(train_loader) else len(train_loader)
 
         # Train new model
-        self.model.train()
-        model_old = deepcopy(self.model)
-        iters = 0
-        stop = False
-
+        model.to(device)
+        self.criterion.to(device)
+        model.train()
+        model_old = deepcopy(model)
+        iter = 0
         for epoch in range(epochs):
-            loss_total, num_examples = 0., 0
+            loss_sum, loss_num_images, num_images = 0., 0, 0
             for batch, (examples, labels) in enumerate(train_loader):
                 examples, labels = examples.to(device), labels.to(device)
-                self.model.zero_grad()
-                log_probs = self.model(examples)
+                model.zero_grad()
+                log_probs = model(examples)
                 loss = self.criterion(log_probs, labels)
 
                 if self.args.fedprox_mu > 0 and epoch > 0:
                     # Add proximal term to loss (FedProx)
                     w_diff = torch.tensor(0., device=device)
-                    for w, w_t in zip(model_old.parameters(), self.model.parameters()):
+                    for w, w_t in zip(model_old.parameters(), model.parameters()):
                         w_diff += torch.pow(torch.norm(w - w_t), 2)
                     loss += self.args.fedprox_mu / 2. * w_diff
 
-                loss_total += loss.item()
-                num_examples += len(labels)
+                loss_sum += loss.item() * len(labels)
+                loss_num_images += len(labels)
+                num_images += len(labels)
 
                 loss.backward()
-                self.optimizer.step()
+                optim.step()
 
+                # After loss_every batches...
+                if (batch + 1) % loss_every == 0:
+                    # ...Compute average loss
+                    loss_running = loss_sum / loss_num_images
 
-                # After loss_every or acc_every batches...
-                if (batch + 1) % loss_every == 0 or (batch + 1) % acc_every == 0:
-                    # ... Print stats
+                    # ...Print stats
                     if not self.args.quiet:
-                        lrs = ['%.3g' % param_group['lr'] for param_group in self.optimizer.state_dict()['param_groups']]
-                        print('    ' + f'Round: {round+1}/{self.args.rounds} | '\
-                                       f'Client: {self.id} ({i+1}/{m}) | '\
-                                       f'Epoch: {epoch+1}/{epochs} | '\
-                                       f'Batch: {batch+1}/{len(train_loader)} (Example: {num_examples}/{len(train_loader.dataset)}) | '\
-                                       f'Learning rates: {lrs}, ' \
-                                       f'Loss: {loss.item():.6f}', end='')
+                        print('            ' + f'Epoch: {epoch+1}/{epochs}, '\
+                                               f'Batch: {batch+1}/{len(train_loader)} (Image: {num_images}/{len(train_loader.dataset)}), '\
+                                               f'Loss: {loss.item():.6f}, ' \
+                                               f'Running loss: {loss_running:.6f}')
 
-                    # ...After every loss_every batches...
-                    if (batch + 1) % loss_every == 0:
-                        # ...Compute average loss
-                        loss_avg = loss_total/num_examples
-                        loss_total, num_examples = 0., 0
+                    loss_sum, loss_num_images = 0., 0
 
-                        if self.scheduler.name == 'ReduceLROnPlateauLoss':
-                            # ...Log learning rates and step plateau_loss scheduler
-                            if self.args.centralized and logger is not None:
-                                logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': self.optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(self.optimizer.state_dict()['param_groups']))}, self.total_iters)
-                            self.scheduler.step(loss_avg)
-
-                        # ...Print and log average loss
-                        if not self.args.quiet:
-                            print(f', Average loss: {loss_avg:.6f}', end='')
-                        if self.args.centralized and logger is not None:
-                            logger.add_scalar(f'Client {self.id}: Average loss', loss_avg, self.total_iters+1)
-
-
-                    # ...After acc_every batches...
-                    if self.args.centralized and (batch + 1) % acc_every == 0:
-                        # ...Compute accuracies
-                        train_acc, _ = self.inference(self.model, type='train', device=device)
-                        valid_acc, _ = self.inference(self.model, type='valid', device=device)
-                        test_acc, _ = self.inference(self.model, type='test', device=device)
-
-                        # ...Print and log accuracies
-                        if not self.args.quiet:
-                            print(f', Training accuracy: {train_acc:.3%}, Validation accuracy: {valid_acc if valid_acc is not None else torch.nan:.3%}, Test accuracy: {test_acc:.3%}', end='')
-                        if logger is not None :
-                            if valid_acc is not None:
-                                logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Validation': valid_acc, 'Test': test_acc}, self.total_iters+1)
-                            else:
-                                logger.add_scalars(f'Client {self.id}: Accuracy', {'Training': train_acc, 'Test': test_acc}, self.total_iters+1)
-
-                    if not self.args.quiet: print()
-
-                self.total_iters += 1
-                iters += 1
-
-                # Stop training if the desired number of total iterations has been reached
-                if self.args.iters is not None and total_iters + iters >= self.args.iters:
-                    stop = True
-                    break
-            if stop: break
-
-            # Log learning rates and step scheduler
-            if self.scheduler.name != 'ReduceLROnPlateauLoss':
-                if self.args.centralized and logger is not None:
-                    logger.add_scalars(f'Client {self.id}: Learning rate', {f'Parameter group {i}': self.optimizer.state_dict()['param_groups'][i]['lr'] for i in range(len(self.optimizer.state_dict()['param_groups']))}, self.total_iters)
-                self.scheduler.step()
+                iter += 1
 
         # Compute model update
         model_update = deepcopy(model_old.state_dict())
         for key in model_update.keys():
-            model_update[key] = torch.sub(model_update[key], self.model.state_dict()[key])
+            model_update[key] = torch.sub(model_update[key], model.state_dict()[key])
 
-        return model_update, len(train_loader.dataset), iters, loss_avg
+        return model_update, len(train_loader.dataset), iter, loss_running
 
     def inference(self, model, type, device):
         return inference(model, self.loaders[type], device)

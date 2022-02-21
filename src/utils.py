@@ -1,10 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.8.10
 
+'''
+    <one line to give the program's name and a brief idea of what it does.>
+    Copyright (C) 2022  <name of author>
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program. If not, see <https://www.gnu.org/licenses/>.
+'''
+
+import io, re
 from copy import deepcopy
-import io
 from contextlib import redirect_stdout
 
 import torch
@@ -12,6 +28,10 @@ from torch.nn import CrossEntropyLoss
 from torchinfo import summary
 
 import optimizers, schedulers
+
+
+types_pretty = {'train': 'training', 'valid': 'validation', 'test': 'test'}
+
 
 class Scheduler():
     def __str__(self):
@@ -56,12 +76,52 @@ def inference(model, loader, device):
 
     return accuracy, loss
 
+def get_acc_avg(acc_types, clients, model, device):
+    acc_avg = {}
+    for type in acc_types:
+        acc_avg[type] = 0.
+        num_examples = 0
+        for client_id in range(len(clients)):
+            acc_client, _ = clients[client_id].inference(model, type=type, device=device)
+            if acc_client is not None:
+                acc_avg[type] += acc_client * len(clients[client_id].loaders[type].dataset)
+                num_examples += len(clients[client_id].loaders[type].dataset)
+        acc_avg[type] = acc_avg[type] / num_examples if num_examples != 0 else None
+
+    return acc_avg
+
+def printlog_stats(quiet, logger, loss_avg, acc_avg, acc_types, lr, round, iter, iters):
+    if not quiet:
+        print(f'        Iteration: {iter}', end='')
+        if iters is not None: print(f'/{iters}', end='')
+        print()
+        print(f'        Learning rate: {lr}')
+        print(f'        Average running loss: {loss_avg:.6f}')
+        for type in acc_types:
+            print(f'        Average {types_pretty[type]} accuracy: {acc_avg[type]:.3%}')
+
+    if logger is not None:
+        logger.add_scalar('Learning rate (Round)', lr, round)
+        logger.add_scalar('Learning rate (Iteration)', lr, iter)
+        logger.add_scalar('Average running loss (Round)', loss_avg, round)
+        logger.add_scalar('Average running loss (Iteration)', loss_avg, iter)
+        for type in acc_types:
+            logger.add_scalars('Average accuracy (Round)', {types_pretty[type].capitalize(): acc_avg[type]}, round)
+            logger.add_scalars('Average accuracy (Iteration)', {types_pretty[type].capitalize(): acc_avg[type]}, iter)
+        logger.flush()
+
 def exp_details(args, model, datasets, splits):
-    device = str(torch.cuda.get_device_properties(args.device)) if args.device != 'cpu' else 'CPU'
+    if args.device == 'cpu':
+        device = 'CPU'
+    else:
+        device = str(torch.cuda.get_device_properties(args.device))
+        device = (', ' + re.sub('_CudaDeviceProperties\(|\)', '', device)).replace(', ', '\n            ')
+
+    #device = str(torch.cuda.get_device_properties(args.device)) if args.device != 'cpu' else 'CPU'
 
     input_size = (args.train_bs,) + tuple(datasets['train'][0][0].shape)
     summ = str(summary(model, input_size, depth=10, verbose=0, col_names=['output_size','kernel_size','num_params','mult_adds'], device=args.device))
-    summ = '            ' + summ.replace('\n', '\n            ')
+    summ = '        ' + summ.replace('\n', '\n        ')
 
     optimizer = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
     scheduler = getattr(schedulers, args.sched)(optimizer, args.sched_args)
@@ -85,46 +145,44 @@ def exp_details(args, model, datasets, splits):
     f = io.StringIO()
     with redirect_stdout(f):
         print('Experiment summary:')
-        print('    General parameters:')
-        print(f'        Algorithm: {algo}')
-        print(f'        Epochs: {args.epochs}')
+        print(f'    Algorithm ({algo}):')
+        print(f'        ' + (f'Rounds: {args.rounds}' if args.iters is None else f'Iterations: {args.iters}'))
+        print(f'        Fraction of clients: {args.frac_clients}')
+        print(f'        Client epochs: {args.epochs}')
         print(f'        Training batch size: {args.train_bs}')
-        print(f'        Test batch size: {args.test_bs}')
-        print(f'        Random seed: {args.seed}')
+        print(f'        System heterogeneity: {args.hetero}')
+        print(f'        Drop stragglers: {args.drop_stragglers}')
+        print(f'        Server learning rate: {args.server_lr}')
+        print(f'        Server momentum (FedAvgM): {args.server_momentum}')
+        print(f'        FedSGD: {args.fedsgd}')
+        print(f'        FedIR: {args.fedir}')
+        print(f'        Virtual client size (FedVC): {args.fedvc_nvc}')
+        print(f'        Mu (FedProx): {args.fedprox_mu}')
         print()
 
-        if not args.centralized:
-            print('    Federated parameters:')
-            print(f'        Communication rounds: {args.rounds}')
-            print(f'        Clients: {args.num_clients}')
-            print(f'        Fraction of clients: {args.frac_clients}')
-            print(f'        Server learning rate: {args.server_lr}')
-            print(f'        Server momentum (FedAvgM): {args.server_momentum}')
-            print(f'        IID: {args.iid} (EMD = {splits["train"].emd["class"]})')
-            print(f'        Balance: {args.balance} (EMD = {splits["train"].emd["client"]})')
-            print(f'        System heterogeneity: {args.hetero}')
-            print(f'        FedIR: {args.fedir}')
-            print(f'        Virtual client size (FedVC): {args.fedvc_nvc}')
-            print(f'        Mu (FedProx): {args.fedprox_mu}')
-            print()
-
-        print('    Scheduler: %s' % (str(scheduler).replace('\n', '\n    ')))
-        print()
-
-        print('    Dataset:')
-        print('        Training:')
+        print('    Dataset and split:')
+        print('        Training set:')
         print('            ' + str(datasets['train']).replace('\n','\n            '))
         if datasets['valid'] is not None:
-            print('        Validation:')
+            print('        Validation set:')
             print('            ' + str(datasets['valid']).replace('\n','\n            '))
-        print('        Test:')
+        print('        Test set:')
         print('            ' + str(datasets['test']).replace('\n','\n            '))
+        print(f'        Clients: {args.num_clients}')
+        print(f'        Identicalness: {args.iid} (EMD = {splits["train"].emd["class"]})')
+        print(f'        Balance: {args.balance} (EMD = {splits["train"].emd["client"]})')
+        print()
+
+        print('    Scheduler and optimizer: %s' % (str(scheduler).replace('\n', '\n    ')))
         print()
 
         print('    Model:')
-        print(f'        Device: {device}')
-        print(f'        Arguments: {args.model_args}')
-        print('        Architecture:')
         print(summ)
+        print()
+
+        print('    Other:')
+        print(f'        Test batch size: {args.test_bs}')
+        print(f'        Random seed: {args.seed}')
+        print(f'        Device: {device}')
 
     return f.getvalue()

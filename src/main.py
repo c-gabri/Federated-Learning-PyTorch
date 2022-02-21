@@ -1,21 +1,38 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.8.10
 
+'''
+    <one line to give the program's name and a brief idea of what it does.>
+    Copyright (C) 2022  <name of author>
 
-import random
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program. If not, see <https://www.gnu.org/licenses/>.
+'''
+
+import random, re
 from copy import deepcopy
-import numpy as np
-import re
+from os import environ
 from time import time
 from datetime import timedelta
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
-import datasets, models
+import datasets, models, optimizers, schedulers
 from options import args_parser
-from utils import average_updates, inference, exp_details
+from utils import average_updates, exp_details, get_acc_avg, printlog_stats
 from datasets_utils import Subset, get_datasets_fig
 from sampling import get_splits, get_splits_fig
 from client import Client
@@ -28,45 +45,77 @@ if __name__ == '__main__':
     # Parse arguments
     args = args_parser()
 
+    resume = args.resume
+    checkpoint = torch.load(f'save/{resume}') if resume is not None else {}
+    if resume is None:
+        checkpoint['args'] = args
+    else:
+        args = checkpoint['args']
+
     ## Initialize RNGs and ensure reproducibility
     if args.seed is not None:
-        from os import environ
         environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
         torch.backends.cudnn.benchmark = False
         torch.use_deterministic_algorithms(True)
-        torch.manual_seed(args.seed)
-        np.random.seed(args.seed)
-        random.seed(args.seed)
+        if resume is None:
+            torch.manual_seed(args.seed)
+            np.random.seed(args.seed)
+            random.seed(args.seed)
+        else:
+            torch.set_rng_state(checkpoint['torch_rng_state'])
+            np.random.set_state(checkpoint['numpy_rng_state'])
+            random.setstate(checkpoint['python_rng_state'])
 
     # Load datasets and splits
-    datasets = getattr(datasets, args.dataset)(args, args.dataset_args)
-    splits = get_splits(datasets, args.num_clients, args.iid, args.balance)
-
-    datasets_actual = {}
-    for type in splits:
-        if splits[type] is not None:
-            idxs = []
-            for client_id in splits[type].idxs:
-                idxs += splits[type].idxs[client_id]
-            datasets_actual[type] = Subset(datasets[type], idxs)
-        else:
-            datasets_actual[type] = None
+    if resume is None:
+        datasets = getattr(datasets, args.dataset)(args, args.dataset_args)
+        splits = get_splits(datasets, args.num_clients, args.iid, args.balance)
+        datasets_actual = {}
+        for dataset_type in splits:
+            if splits[dataset_type] is not None:
+                idxs = []
+                for client_id in splits[dataset_type].idxs:
+                    idxs += splits[dataset_type].idxs[client_id]
+                datasets_actual[dataset_type] = Subset(datasets[dataset_type], idxs)
+            else:
+                datasets_actual[dataset_type] = None
+        checkpoint['splits'] = splits
+        checkpoint['datasets_actual'] = datasets_actual
+    else:
+        splits = checkpoint['splits']
+        datasets_actual = checkpoint['datasets_actual']
+    acc_types = ['train', 'test'] if datasets_actual['valid'] is None else ['train', 'valid']
 
     # Load model
-    num_classes = len(datasets_actual['train'].classes)
-    num_channels = datasets_actual['train'][0][0].shape[0]
-    model = getattr(models, args.model)(num_classes, num_channels, args.model_args).to(args.device)
+    if resume is None:
+        num_classes = len(datasets_actual['train'].classes)
+        num_channels = datasets_actual['train'][0][0].shape[0]
+        model = getattr(models, args.model)(num_classes, num_channels, args.model_args).to(args.device)
+    else:
+        model = checkpoint['model']
+
+    # Load optimizer and scheduler
+    if resume is None:
+        optim = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
+        sched = getattr(schedulers, args.sched)(optim, args.sched_args)
+    else:
+        optim = checkpoint['optim']
+        sched = checkpoint['sched']
 
     # Create clients
-    clients = []
-    for client_id in range(args.num_clients):
-        client_idxs = {type: splits[type].idxs[client_id] if splits[type] is not None else None for type in splits}
-        clients.append(Client(args=args, id=client_id, datasets=datasets, idxs=client_idxs, model=deepcopy(model)))
+    if resume is None:
+        clients = []
+        for client_id in range(args.num_clients):
+            client_idxs = {dataset_type: splits[dataset_type].idxs[client_id] if splits[dataset_type] is not None else None for dataset_type in splits}
+            clients.append(Client(args=args, datasets=datasets, idxs=client_idxs))
+        checkpoint['clients'] = clients
+    else:
+        clients = checkpoint['clients']
 
     # Set client sampling probabilities
     if args.fedvc_nvc > 0:
         # Proportional to the number of examples (FedVC)
-        p_clients = np.array([len(splits['train'].idxs[client_id]) for client_id in splits['train'].idxs])
+        p_clients = np.array([len(client.loaders['train'].dataset) for client in clients])
         p_clients = p_clients / p_clients.sum()
     else:
         # Uniform
@@ -77,56 +126,80 @@ if __name__ == '__main__':
 
     # Print experiment summary
     summary = exp_details(args, model, datasets_actual, splits)
-    print('\n'+summary)
+    print('\n' + summary)
 
     # Log experiment summary, client distributions, example images
     if not args.no_log:
-        from torch.utils.tensorboard import SummaryWriter
         logger = SummaryWriter('runs/' + args.dir)
-        logger.add_text('Experiment summary', re.sub('^', '    ', re.sub('\n', '\n    ', summary)))
+        if resume is None:
+            logger.add_text('Experiment summary', re.sub('^', '    ', re.sub('\n', '\n    ', summary)))
 
-        splits_fig = get_splits_fig(splits, args.iid, args.balance)
-        logger.add_figure('Splits', splits_fig)
+            splits_fig = get_splits_fig(splits, args.iid, args.balance)
+            logger.add_figure('Splits', splits_fig)
 
-        datasets_fig = get_datasets_fig(datasets_actual, args.train_bs)
-        logger.add_figure('Datasets', datasets_fig)
+            datasets_fig = get_datasets_fig(datasets_actual, args.train_bs)
+            logger.add_figure('Datasets', datasets_fig)
 
-        input_size = (1,) + tuple(datasets_actual['train'][0][0].shape)
-        fake_input = torch.zeros(input_size).to(args.device)
-        logger.add_graph(model, fake_input)
+            input_size = (1,) + tuple(datasets_actual['train'][0][0].shape)
+            fake_input = torch.zeros(input_size).to(args.device)
+            logger.add_graph(model, fake_input)
     else:
         logger = None
+
+    if resume is None:
+        # Compute initial average accuracies
+        acc_avg = get_acc_avg(acc_types, clients, model, args.device)
+        acc_avg_best = acc_avg[acc_types[1]]
+
+        # Print and log initial stats
+        if not args.quiet:
+            print('Training:')
+            print('    Round: 0' + (f'/{args.rounds}' if args.iters is None else ''))
+        loss_avg, lr = torch.nan, torch.nan
+        printlog_stats(args.quiet, logger, loss_avg, acc_avg, acc_types, lr, 0, 0, args.iters)
+    else:
+        acc_avg_best = checkpoint['acc_avg_best']
 
     init_end_time = time()
 
     # Train server model
-    if not args.quiet: print('Training:')
-    v = None
-    total_iters = 0
-    stop = False
+    if resume is None:
+        last_round = -1
+        iter = 0
+        v = None
+    else:
+        last_round = checkpoint['last_round']
+        iter = checkpoint['iter']
+        v = checkpoint['v']
 
-    for round in range(args.rounds):
+    for round in range(last_round + 1, args.rounds):
+        if not args.quiet:
+            print(f'    Round: {round+1}' + (f'/{args.rounds}' if args.iters is None else ''))
+
         # Sample clients
         client_ids = np.random.choice(range(args.num_clients), m, replace=False, p=p_clients)
 
         # Train client models
-        updates, num_examples, loss_avg = [], [], 0.
+        updates, num_examples, max_iters, loss_tot = [], [], 0, 0.
         for i, client_id in enumerate(client_ids):
-            client_update, client_num_examples, client_num_iters, client_loss = clients[client_id].train(model_state_dict=model.state_dict(), round=round, total_iters=total_iters, i=i, m=m, device=args.device, logger=logger)
+            if not args.quiet: print(f'        Client: {client_id} ({i+1}/{m})')
+
+            client_model = deepcopy(model)
+            optim.param_groups[0]['params'] = list(client_model.parameters())
+
+            client_update, client_num_examples, client_num_iters, client_loss = clients[client_id].train(model=client_model, optim=optim, device=args.device)
+
+            if client_num_iters > max_iters: max_iters = client_num_iters
 
             if client_update is not None:
                 updates.append(deepcopy(client_update))
-                loss_avg += client_loss * client_num_examples
+                loss_tot += client_loss * client_num_examples
                 num_examples.append(client_num_examples)
 
-            total_iters += client_num_iters
-            if args.iters is not None and total_iters >= args.iters:
-                stop = True
-                break
+        iter += max_iters
+        lr = optim.param_groups[0]['lr']
 
         if len(updates) > 0:
-            loss_avg /= sum(num_examples)
-
             # Update server model
             update_avg = average_updates(updates, num_examples)
             if v is None:
@@ -139,64 +212,48 @@ if __name__ == '__main__':
                 new_weights[key] = new_weights[key] - v[key] * args.server_lr
             model.load_state_dict(new_weights)
 
-            # Compute accuracies
-            train_acc_avg, valid_acc_avg, test_acc_avg = 0., 0., 0.
-            train_num_examples, valid_num_examples, test_num_examples = 0, 0, 0
-            for client_id in range(len(clients)):
-                train_acc_client, _ = clients[client_id].inference(model, type='train', device=args.device)
-                valid_acc_client, _ = clients[client_id].inference(model, type='valid', device=args.device)
-                test_acc_client, _ = clients[client_id].inference(model, type='test', device=args.device)
-                if train_acc_client is not None:
-                    train_acc_avg += train_acc_client * len(splits['train'].idxs[client_id])
-                    train_num_examples += len(splits['train'].idxs[client_id])
-                if valid_acc_client is not None:
-                    valid_acc_avg += valid_acc_client * len(splits['valid'].idxs[client_id])
-                    valid_num_examples += len(splits['valid'].idxs[client_id])
-                if test_acc_client is not None:
-                    test_acc_avg += test_acc_client * len(splits['test'].idxs[client_id])
-                    test_num_examples += len(splits['test'].idxs[client_id])
-            train_acc_avg /= train_num_examples
-            if valid_num_examples != 0:
-                valid_acc_avg /= valid_num_examples
-            else:
-                valid_acc_avg = None
-            test_acc_avg /= test_num_examples
+            # Compute round average loss and accuracies
+            loss_avg = loss_tot / sum(num_examples)
+            acc_avg = get_acc_avg(acc_types, clients, model, args.device)
 
-            # Print and log average client loss and accuracies
-            if not args.quiet:
-                print(f'    Average client loss: {loss_avg:.6f}')
-                print(f'    Average client training accuracy: {train_acc_avg:.3%}')
-                print(f'    Average client validation accuracy: {valid_acc_avg if valid_acc_avg is not None else torch.nan:.3%}')
-                print(f'    Average client test accuracy: {test_acc_avg:.3%}')
-            if logger is not None:
-                logger.add_scalar(f'Average client loss', loss_avg, round+1)
-                if valid_acc_avg is not None:
-                    logger.add_scalars(f'Average client accuracy', {'Training': train_acc_avg, 'Validation': valid_acc_avg, 'Test': test_acc_avg}, round+1)
-                else:
-                    logger.add_scalars(f'Average client accuracy', {'Training': train_acc_avg, 'Test': test_acc_avg}, round+1)
+            if acc_avg[acc_types[1]] > acc_avg_best:
+                acc_avg_best = acc_avg[acc_types[1]]
+                checkpoint['model'] = model
+                checkpoint['optim'] = optim
+                checkpoint['sched'] = sched
+                checkpoint['last_round'] = round
+                checkpoint['iter'] = iter
+                checkpoint['v'] = v
+                checkpoint['acc_avg_best'] = acc_avg_best
+                checkpoint['torch_rng_state'] = torch.get_rng_state()
+                checkpoint['numpy_rng_state'] = np.random.get_state()
+                checkpoint['python_rng_state'] = random.getstate()
+                torch.save(checkpoint, f'save/{args.dir}')
+                print('Saving checkpoint')
 
-        if stop: break
+        # Print and log round stats
+        printlog_stats(args.quiet, logger, loss_avg, acc_avg, acc_types, lr, round+1, iter, args.iters)
+
+        # Stop training if the desired number of iterations has been reached
+        if args.iters is not None and iter >= args.iters: break
+
+        # Step scheduler
+        if type(sched) == schedulers.plateau_loss:
+            sched.step(loss_avg)
+        else:
+            sched.step()
 
     train_end_time = time()
 
-    # Test on client datasets
-    test_acc_avg, test_num_examples = 0., 0
-    for client_id in range(len(clients)):
-        test_acc_client, _ = clients[client_id].inference(model, type='test', device=args.device)
-        if test_acc_client is not None:
-            test_acc_avg += test_acc_client * len(splits['test'].idxs[client_id])
-            test_num_examples += len(splits['test'].idxs[client_id])
-    test_acc_avg /= test_num_examples
+    # Compute final average test accuracy
+    acc_avg = get_acc_avg(['test'], clients, model, args.device)
 
     test_end_time = time()
 
     # Print and log test results
     print('\nResults:')
-    print(f'    Average client test accuracy: {test_acc_avg:.3%}')
+    print(f'    Average test accuracy: {acc_avg["test"]:.3%}')
     print(f'    Train time: {timedelta(seconds=int(train_end_time-init_end_time))}')
     print(f'    Total time: {timedelta(seconds=int(time()-start_time))}')
-
-    if logger is not None:
-        logger.add_scalar('Average test accuracy', test_acc_avg, args.rounds)
 
     if logger is not None: logger.close()

@@ -1,7 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.8.10
 
+'''
+    <one line to give the program's name and a brief idea of what it does.>
+    Copyright (C) 2022  <name of author>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program. If not, see <https://www.gnu.org/licenses/>.
+'''
 
 import argparse
 from inspect import getmembers, isfunction, isclass
@@ -18,23 +34,6 @@ def args_parser():
     usage = 'python main.py [ARGUMENTS]'
     parser = argparse.ArgumentParser(prog='main.py', add_help=False, usage=usage, formatter_class=lambda prog: argparse.ArgumentDefaultsHelpFormatter(prog, max_help_position=1000, width=1000))
 
-    # Dataset and split arguments
-    args_dataset_split = parser.add_argument_group('dataset and split arguments')
-    args_dataset_split.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction) if f[1].__module__ == 'datasets'],
-                        help="dataset, place yours in datasets.py")
-    args_dataset_split.add_argument('--dataset_args', type=str, default='augment=True',
-                        help="dataset arguments")
-    args_dataset_split.add_argument('--frac_valid', type=float, default=0,
-                        help="fraction of the training set to use for validation")
-    args_dataset_split.add_argument('--num_clients', '-K', type=int, default=100,
-                        help="number of clients")
-    args_dataset_split.add_argument('--iid', type=float, default='inf',
-                        help="identicalness of client distributions, 'inf' for IID")
-    args_dataset_split.add_argument('--balance', type=float, default='inf',
-                        help="balance of client distributions, 'inf' for balanced")
-    args_dataset_split.add_argument('--hetero', type=float, default=0,
-                        help="system heterogeneity")
-
     # Algorithm arguments
     args_algo = parser.add_argument_group('algorithm arguments')
     args_algo.add_argument('--rounds', type=int, default=200,
@@ -45,10 +44,10 @@ def args_parser():
                         help="fraction of clients selected at each round")
     args_algo.add_argument('--epochs', '-E', type=int, default=5,
                         help="number of local epochs (or global epochs when --centralized)")
+    args_algo.add_argument('--hetero', type=float, default=0,
+                        help="system heterogeneity")
     args_algo.add_argument('--train_bs', '-B', type=int, default=50,
                         help="training batch size")
-    args_algo.add_argument('--test_bs', type=int, default=256,
-                        help="test and validation batch size")
     args_algo.add_argument('--centralized', action='store_true', default=False,
                         help="use centralized algorithm")
     args_algo.add_argument('--server_momentum', type=float, default=0,
@@ -65,6 +64,21 @@ def args_parser():
                         help="use FedSGD algorithm")
     args_algo.add_argument('--server_lr', type=float, default=1,
                         help="server learning rate")
+
+    # Dataset and split arguments
+    args_dataset_split = parser.add_argument_group('dataset and split arguments')
+    args_dataset_split.add_argument('--dataset', type=str, default='cifar10', choices=[f[0] for f in getmembers(datasets, isfunction) if f[1].__module__ == 'datasets'],
+                        help="dataset, place yours in datasets.py")
+    args_dataset_split.add_argument('--dataset_args', type=str, default='augment=True',
+                        help="dataset arguments")
+    args_dataset_split.add_argument('--frac_valid', type=float, default=0,
+                        help="fraction of the training set to use for validation")
+    args_dataset_split.add_argument('--num_clients', '-K', type=int, default=100,
+                        help="number of clients")
+    args_dataset_split.add_argument('--iid', type=float, default='inf',
+                        help="identicalness of client distributions, 'inf' for IID")
+    args_dataset_split.add_argument('--balance', type=float, default='inf',
+                        help="balance of client distributions, 'inf' for balanced")
 
     # Model, optimizer and scheduler arguments
     args_model_optim_sched = parser.add_argument_group('model, optimizer and scheduler arguments')
@@ -86,9 +100,9 @@ def args_parser():
     args_output.add_argument('--quiet', '-q', action='store_true', default=False,
                         help="less verbose output")
     args_output.add_argument('--loss_every', type=int, default=0,
-                        help="print and log average loss every specified number of batches")
-    args_output.add_argument('--acc_every', type=int, default=0,
-                        help="print and log training, validation and test accuracies every specified number of batches")
+                        help="compute client running loss every specified number of batches")
+    #args_output.add_argument('--acc_every', type=int, default=0,
+    #                    help="print and log training, validation and test accuracies every specified number of rounds")
     args_output.add_argument('--dir', type=str, default=None,
                         help="custom tensorboard log directory")
     args_output.add_argument('--no_log', action='store_true', default=False,
@@ -98,10 +112,14 @@ def args_parser():
     args_other = parser.add_argument_group('other arguments')
     args_other.add_argument('--help', '-h', action='store_true', default=False,
                         help="show this help message and exit")
-    args_other.add_argument('--seed', type=int, default=None,
+    args_other.add_argument('--seed', type=int, default=0,
                         help="random seed")
     args_other.add_argument('--device', type=str, default='cuda:0', choices=['cuda:%d' % device for device in range(device_count())] + ['cpu'],
                         help="device to train, validate and test with")
+    args_other.add_argument('--test_bs', type=int, default=256,
+                        help="test and validation batch size")
+    args_other.add_argument('--resume', type=str, default=None,
+                        help="resume from checkpoint")
 
     args = parser.parse_args()
     if args.help:
@@ -127,7 +145,7 @@ def args_parser():
     if args.centralized:
         args.num_clients = 1
         args.frac_clients = 1
-        args.rounds = 1
+        args.epochs = 1
         args.hetero = 0
         args.iid = float('inf')
         args.balance = float('inf')

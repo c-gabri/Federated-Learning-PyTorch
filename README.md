@@ -75,3 +75,9 @@ To put it simply, the future of FL has never looked brighter since its introduct
 * [4] [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
 * [5] [GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf): GhostModule
 * [6] [TensorFlow Convolutional Neural Network Tutorial (2016)](https://github.com/tensorflow/models/blob/86ecc9730d751c1f72e3bfecac958166390f4125/tutorials/image/cifar10/cifar10.py): LeNet5
+
+## To do
+* [*] Log stats per iteration
+* [*] Better centralized-federated integration
+* [*] Save and resume
+* [ ] Allow resuming with different arguments

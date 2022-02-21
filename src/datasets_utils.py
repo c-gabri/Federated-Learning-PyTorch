@@ -1,12 +1,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python version: 3.8.10
 
+'''
+    <one line to give the program's name and a brief idea of what it does.>
+    Copyright (C) 2022  <name of author>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program. If not, see <https://www.gnu.org/licenses/>.
+'''
 
 import random
+
 import numpy as np
 import matplotlib.pyplot as plt
-
 import torch
 from torchvision import datasets as tvdatasets, transforms as tvtransforms
 from torchvision.utils import make_grid
@@ -18,7 +34,6 @@ import models
 class Subset(torch.utils.data.Dataset):
     def __init__(self, dataset, idxs, augment=None, normalize=None, name=None):
         self.name = name if name is not None else dataset.name
-        #self.data = dataset.data[idxs]
         self.dataset = dataset.dataset if 'dataset' in vars(dataset) else dataset
         self.idxs = idxs
         self.targets = np.array(dataset.targets)[idxs]
@@ -41,7 +56,6 @@ class Subset(torch.utils.data.Dataset):
             example = self.augment(example)
         if normalized and self.normalize is not None:
             example = self.normalize(example)
-        #target = self.targets[idx]
         return example, target
 
     def __len__(self):
