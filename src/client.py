@@ -67,18 +67,18 @@ class Client(object):
         epochs = np.random.randint(1, self.args.epochs) if straggler else self.args.epochs
 
         # Create training loader
-        if self.args.fedvc_nvc > 0:
+        if self.args.vc_size is not None:
             # Virtual Client (FedVC)
-            if len(self.loaders['train'].dataset) >= self.args.fedvc_nvc:
-                train_idxs_vc = torch.randperm(len(self.loaders['train'].dataset))[:self.args.fedvc_nvc]
+            if len(self.loaders['train'].dataset) >= self.args.vc_size:
+                train_idxs_vc = torch.randperm(len(self.loaders['train'].dataset))[:self.args.vc_size]
             else:
-                train_idxs_vc = torch.randint(len(self.loaders['train'].dataset), (self.args.fedvc_nvc,))
+                train_idxs_vc = torch.randint(len(self.loaders['train'].dataset), (self.args.vc_size,))
             train_loader = DataLoader(Subset(self.loaders['train'].dataset, train_idxs_vc), batch_size=self.train_bs, shuffle=True)
         else:
             # No Virtual Client
             train_loader = self.loaders['train']
 
-        loss_every = self.args.loss_every if self.args.loss_every > 0 and self.args.loss_every < len(train_loader) else len(train_loader)
+        client_stats_every = self.args.client_stats_every if self.args.client_stats_every > 0 and self.args.client_stats_every < len(train_loader) else len(train_loader)
 
         # Train new model
         model.to(device)
@@ -94,12 +94,12 @@ class Client(object):
                 log_probs = model(examples)
                 loss = self.criterion(log_probs, labels)
 
-                if self.args.fedprox_mu > 0 and epoch > 0:
+                if self.args.mu > 0 and epoch > 0:
                     # Add proximal term to loss (FedProx)
                     w_diff = torch.tensor(0., device=device)
                     for w, w_t in zip(model_old.parameters(), model.parameters()):
                         w_diff += torch.pow(torch.norm(w - w_t), 2)
-                    loss += self.args.fedprox_mu / 2. * w_diff
+                    loss += self.args.mu / 2. * w_diff
 
                 loss_sum += loss.item() * len(labels)
                 loss_num_images += len(labels)
@@ -108,8 +108,8 @@ class Client(object):
                 loss.backward()
                 optim.step()
 
-                # After loss_every batches...
-                if (batch + 1) % loss_every == 0:
+                # After client_stats_every batches...
+                if (batch + 1) % client_stats_every == 0:
                     # ...Compute average loss
                     loss_running = loss_sum / loss_num_images
 

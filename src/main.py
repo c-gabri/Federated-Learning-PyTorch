@@ -113,7 +113,7 @@ if __name__ == '__main__':
         clients = checkpoint['clients']
 
     # Set client sampling probabilities
-    if args.fedvc_nvc > 0:
+    if args.vc_size is not None:
         # Proportional to the number of examples (FedVC)
         p_clients = np.array([len(client.loaders['train'].dataset) for client in clients])
         p_clients = p_clients / p_clients.sum()
@@ -213,26 +213,28 @@ if __name__ == '__main__':
             model.load_state_dict(new_weights)
 
             # Compute round average loss and accuracies
-            loss_avg = loss_tot / sum(num_examples)
-            acc_avg = get_acc_avg(acc_types, clients, model, args.device)
+            if round % args.server_stats_every == 0:
+                loss_avg = loss_tot / sum(num_examples)
+                acc_avg = get_acc_avg(acc_types, clients, model, args.device)
 
-            if acc_avg[acc_types[1]] > acc_avg_best:
-                acc_avg_best = acc_avg[acc_types[1]]
-                checkpoint['model'] = model
-                checkpoint['optim'] = optim
-                checkpoint['sched'] = sched
-                checkpoint['last_round'] = round
-                checkpoint['iter'] = iter
-                checkpoint['v'] = v
-                checkpoint['acc_avg_best'] = acc_avg_best
-                checkpoint['torch_rng_state'] = torch.get_rng_state()
-                checkpoint['numpy_rng_state'] = np.random.get_state()
-                checkpoint['python_rng_state'] = random.getstate()
-                torch.save(checkpoint, f'save/{args.dir}')
-                print('Saving checkpoint')
+                if acc_avg[acc_types[1]] > acc_avg_best:
+                    print('        Saving checkpoint')
+                    acc_avg_best = acc_avg[acc_types[1]]
+                    checkpoint['model'] = model
+                    checkpoint['optim'] = optim
+                    checkpoint['sched'] = sched
+                    checkpoint['last_round'] = round
+                    checkpoint['iter'] = iter
+                    checkpoint['v'] = v
+                    checkpoint['acc_avg_best'] = acc_avg_best
+                    checkpoint['torch_rng_state'] = torch.get_rng_state()
+                    checkpoint['numpy_rng_state'] = np.random.get_state()
+                    checkpoint['python_rng_state'] = random.getstate()
+                    torch.save(checkpoint, f'save/{args.dir}')
 
         # Print and log round stats
-        printlog_stats(args.quiet, logger, loss_avg, acc_avg, acc_types, lr, round+1, iter, args.iters)
+        if round % args.server_stats_every == 0:
+            printlog_stats(args.quiet, logger, loss_avg, acc_avg, acc_types, lr, round+1, iter, args.iters)
 
         # Stop training if the desired number of iterations has been reached
         if args.iters is not None and iter >= args.iters: break

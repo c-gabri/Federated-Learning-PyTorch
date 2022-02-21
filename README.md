@@ -13,60 +13,98 @@ While some may still want to opt out of FL, I believe that governments, one of t
 To put it simply, the future of FL has never looked brighter since its introduction and, for the most part, its success will not depend on its commitment to privacy.
 
 ## Requirements
-* python 
-* matplotlib 3.5.1
-* numpy 1.22.2
-* torch 1.10.2
-* torchinfo 1.6.3
-* torchvision 0.11.3
+```
+matplotlib==3.5.1
+numpy==1.22.2
+scikit_learn==1.0.2
+timm==0.5.4
+torch==1.10.2
+torchinfo==1.6.3
+torchvision==0.11.3
+```
 
-## Usage
-```python main.py [ARGUMENTS]```
+## Help
+```
+usage: python main.py [ARGUMENTS]
 
-### Algorithm arguments:
-* ```--rounds ROUNDS```:                                                                                          communication rounds (default: ```200```)
-* ```--iters ITERS```:                                                                                            total iterations, overrides --rounds (default: ```None```)
-* ```--frac_clients FRAC_CLIENTS, -C FRAC_CLIENTS```:                                                             fraction of clients selected at each round (default: ```0.1```)
-* ```--epochs EPOCHS, -E EPOCHS```:                                                                               number of local epochs (or global epochs when --centralized) (default: ```5```)
-* ```--hetero HETERO```:                                                                                          system heterogeneity (default: ```0```)
-* ```--train_bs TRAIN_BS, -B TRAIN_BS```:                                                                         training batch size (default: ```50```)
-* ```--centralized```:                                                                                            use centralized algorithm (default: ```False```)
-* ```--server_momentum SERVER_MOMENTUM```:                                                                        server momentum for FedAvgM algorithm, 0 for no FedAvgM (default: ```0```)
-* ```--fedir```:                                                                                                  use FedIR algorithm (default: ```False```)
-* ```--fedvc_nvc FEDVC_NVC```:                                                                                    virtual client size for FedVC, 0 for no FedVC (default: ```0```)
-* ```--fedprox_mu FEDPROX_MU```:                                                                                  mu parameter for FedProx algorithm, 0 for no FedProx (default: ```0```)
-* ```--drop_stragglers```:                                                                                        drop stragglers when --hetero > 0 (default: ```False```)
-* ```--fedsgd```:                                                                                                 use FedSGD algorithm (default: ```False```)
-* ```--server_lr SERVER_LR```:                                                                                    server learning rate (default: ```1```)
+algorithm arguments:
+  --rounds ROUNDS       number of communication rounds, or number of epochs if
+                        --centralized (default: 200)
+  --iters ITERS         number of iterations: the iterations of a round are
+                        determined by the client with the largest number of
+                        images (default: None)
+  --num_clients NUM_CLIENTS, -K NUM_CLIENTS
+                        number of clients (default: 100)
+  --frac_clients FRAC_CLIENTS, -C FRAC_CLIENTS
+                        fraction of clients selected at each round (default:
+                        0.1)
+  --train_bs TRAIN_BS, -B TRAIN_BS
+                        client training batch size, 0 to use the whole
+                        training set (default: 50)
+  --epochs EPOCHS, -E EPOCHS
+                        number of client epochs (default: 5)
+  --hetero HETERO       probability of clients being stragglers, i.e. training
+                        for less than EPOCHS epochs (default: 0)
+  --drop_stragglers     drop stragglers (default: False)
+  --server_lr SERVER_LR
+                        server learning rate (default: 1)
+  --server_momentum SERVER_MOMENTUM
+                        server momentum for FedAvgM algorithm (default: 0)
+  --mu MU               mu parameter for FedProx algorithm (default: 0)
+  --centralized         use centralized algorithm (default: False)
+  --fedsgd              use FedSGD algorithm (default: False)
+  --fedir               use FedIR algorithm (default: False)
+  --vc_size VC_SIZE     use FedVC algorithm with virtual client size VC_SIZE
+                        (default: None)
 
-### Dataset and split arguments:
-* ```--dataset {cifar10,fmnist,mnist}```:                                                                         dataset, place yours in datasets.py (default: ```cifar10```)
-* ```--dataset_args DATASET_ARGS```:                                                                              dataset arguments (default: ```augment=True```)
-* ```--frac_valid FRAC_VALID```:                                                                                  fraction of the training set to use for validation (default: ```0```)
-* ```--num_clients NUM_CLIENTS, -K NUM_CLIENTS```:                                                                number of clients (default: ```100```)
-* ```--iid IID```:                                                                                                identicalness of client distributions, 'inf' for IID (default: ```inf```)
-* ```--balance BALANCE```:                                                                                        balance of client distributions, 'inf' for balanced (default: ```inf```)
+dataset and split arguments:
+  --dataset {cifar10,fmnist,mnist}
+                        dataset, place yours in datasets.py (default: cifar10)
+  --dataset_args DATASET_ARGS
+                        dataset arguments (default: augment=True)
+  --frac_valid FRAC_VALID
+                        fraction of the training set to use for validation
+                        (default: 0)
+  --iid IID             identicalness of client distributions (default: inf)
+  --balance BALANCE     balance of client distributions (default: inf)
 
-### Model, optimizer and scheduler arguments:
-* ```--model {cnn_cifar10,cnn_mnist,efficientnet,ghostnet,lenet5,lenet5_orig,mlp_mnist,mnasnet,mobilenet_v3}```:  model, place yours in models.py (default: ```lenet5```)
-* ```--model_args MODEL_ARGS```:                                                                                  model arguments (default: ```ghost=True,norm=None```)
-* ```--optim {adam,sgd}```:                                                                                       optimizer, place yours in optimizers.py (default: ```sgd```)
-* ```--optim_args OPTIM_ARGS```:                                                                                  optimizer arguments (default: ```lr=0.01,momentum=0,weight_decay=4e-4```)
-* ```--sched {const,fixed,plateau_loss,step}```:                                                                  scheduler, place yours in schedulers.py (default: ```fixed```)
-* ```--sched_args SCHED_ARGS```:                                                                                  scheduler arguments (default: ```None```)
+model, optimizer and scheduler arguments:
+  --model {cnn_cifar10,cnn_mnist,efficientnet,ghostnet,lenet5,lenet5_orig,mlp_mnist,mnasnet,mobilenet_v3}
+                        model, place yours in models.py (default: lenet5)
+  --model_args MODEL_ARGS
+                        model arguments (default: ghost=True,norm=None)
+  --optim {adam,sgd}    optimizer, place yours in optimizers.py (default: sgd)
+  --optim_args OPTIM_ARGS
+                        optimizer arguments (default:
+                        lr=0.01,momentum=0,weight_decay=4e-4)
+  --sched {const,fixed,plateau_loss,step}
+                        scheduler, place yours in schedulers.py (default:
+                        fixed)
+  --sched_args SCHED_ARGS
+                        scheduler arguments (default: None)
 
-### Output arguments:
-* ```--quiet, -q```:                                                                                              less verbose output (default: ```False```)
-* ```--loss_every LOSS_EVERY```:                                                                                  compute client running loss every specified number of batches (default: ```0```)
-* ```--dir DIR```:                                                                                                custom tensorboard log directory (default: ```None```)
-* ```--no_log```:                                                                                                 no tensorboard logs (default: ```False```)
+output arguments:
+  --quiet, -q           less verbose output (default: False)
+  --client_stats_every CLIENT_STATS_EVERY
+                        compute and print client statistics every
+                        CLIENT_STATS_EVERY batches, 0 for every epoch
+                        (default: 0)
+  --server_stats_every SERVER_STATS_EVERY
+                        compute, print and log server statistics every
+                        SERVER_STATS_EVERY rounds (default: 1)
+  --dir DIR             custom tensorboard logs and checkpoint directory
+                        (default: None)
+  --no_log              disable tensorboard logging (default: False)
 
-### Other arguments:
-* ```--help, -h```:                                                                                               show this help message and exit (default: ```False```)
-* ```--seed SEED```:                                                                                              random seed (default: ```0```)
-* ```--device {cuda:0,cpu}```:                                                                                    device to train, validate and test with (default: ```cuda:0```)
-* ```--test_bs TEST_BS```:                                                                                        test and validation batch size (default: ```256```)
-* ```--resume RESUME```:                                                                                          resume from checkpoint (default: ```None```)
+other arguments:
+  --seed SEED           random seed (default: 0)
+  --device {cuda:0,cpu}
+                        device to train, validate and test with (default:
+                        cuda:0)
+  --test_bs TEST_BS     test and validation batch size (default: 256)
+  --resume RESUME       resume from checkpoint (default: None)
+  --help, -h            show this help message and exit (default: False)
+```
 
 ## References
 * [1] [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedSGD, FedAvg

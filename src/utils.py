@@ -137,9 +137,9 @@ def exp_details(args, model, datasets, splits):
             algo = algo + 'M'
         if args.fedir:
             algo = algo + ' + FedIR'
-        if args.fedvc_nvc:
+        if args.vc_size is not None:
             algo = algo + ' + FedVC'
-        if args.fedprox_mu:
+        if args.mu:
             algo = algo + ' + FedProx'
 
     f = io.StringIO()
@@ -156,8 +156,8 @@ def exp_details(args, model, datasets, splits):
         print(f'        Server momentum (FedAvgM): {args.server_momentum}')
         print(f'        FedSGD: {args.fedsgd}')
         print(f'        FedIR: {args.fedir}')
-        print(f'        Virtual client size (FedVC): {args.fedvc_nvc}')
-        print(f'        Mu (FedProx): {args.fedprox_mu}')
+        print(f'        Virtual client size (FedVC): {args.vc_size}')
+        print(f'        Mu (FedProx): {args.mu}')
         print()
 
         print('    Dataset and split:')
