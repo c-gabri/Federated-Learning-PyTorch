@@ -98,12 +98,11 @@ output arguments:
   --quiet, -q           less verbose output (default: False)
 
 other arguments:
+  --test_bs TEST_BS     client test/validation batch size (default: 256)
   --seed SEED           random seed (default: 0)
   --device {cuda:0,cpu}
-                        device to train, validate and test with (default:
-                        cuda:0)
-  --test_bs TEST_BS     test and validation batch size (default: 256)
-  --resume              resume training from save/NAME checkpoint (default:
+                        device to train/validate/test with (default: cuda:0)
+  --resume              resume experiment from save/NAME checkpoint (default:
                         False)
   --help, -h            show this help message and exit (default: False)
 ```

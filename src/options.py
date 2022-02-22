@@ -115,14 +115,14 @@ def args_parser():
 
     # Other arguments
     args_other = parser.add_argument_group('other arguments')
+    args_other.add_argument('--test_bs', type=int, default=256,
+                        help="client test/validation batch size")
     args_other.add_argument('--seed', type=int, default=0,
                         help="random seed")
     args_other.add_argument('--device', type=str, default='cuda:0', choices=['cuda:%d' % device for device in range(device_count())] + ['cpu'],
-                        help="device to train, validate and test with")
-    args_other.add_argument('--test_bs', type=int, default=256,
-                        help="test and validation batch size")
+                        help="device to train/validate/test with")
     args_other.add_argument('--resume', action='store_true', default=False,
-                        help="resume training from save/NAME checkpoint")
+                        help="resume experiment from save/NAME checkpoint")
     args_other.add_argument('--help', '-h', action='store_true', default=False,
                         help="show this help message and exit")
 
