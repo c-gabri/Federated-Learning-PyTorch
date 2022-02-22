@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 '''
-    <one line to give the program's name and a brief idea of what it does.>
-    Copyright (C) 2022  <name of author>
+    Copyright (C) 2022  Gabriele Cazzato
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -145,6 +144,7 @@ def exp_details(args, model, datasets, splits):
         print('Experiment summary:')
         print(f'    Algorithm ({algo}):')
         print(f'        ' + (f'Rounds: {args.rounds}' if args.iters is None else f'Iterations: {args.iters}'))
+        print(f'        Clients: {args.num_clients}')
         print(f'        Fraction of clients: {args.frac_clients}')
         print(f'        Client epochs: {args.epochs}')
         print(f'        Training batch size: {args.train_bs}')
@@ -152,8 +152,8 @@ def exp_details(args, model, datasets, splits):
         print(f'        Drop stragglers: {args.drop_stragglers}')
         print(f'        Server learning rate: {args.server_lr}')
         print(f'        Server momentum (FedAvgM): {args.server_momentum}')
-        print(f'        FedSGD: {args.fedsgd}')
-        print(f'        FedIR: {args.fedir}')
+        #print(f'        FedSGD: {args.fedsgd}')
+        #print(f'        FedIR: {args.fedir}')
         print(f'        Virtual client size (FedVC): {args.vc_size}')
         print(f'        Mu (FedProx): {args.mu}')
         print()
@@ -166,12 +166,11 @@ def exp_details(args, model, datasets, splits):
             print('            ' + str(datasets['valid']).replace('\n','\n            '))
         print('        Test set:')
         print('            ' + str(datasets['test']).replace('\n','\n            '))
-        print(f'        Clients: {args.num_clients}')
         print(f'        Identicalness: {args.iid} (EMD = {splits["train"].emd["class"]})')
         print(f'        Balance: {args.balance} (EMD = {splits["train"].emd["client"]})')
         print()
 
-        print('    Scheduler and optimizer: %s' % (str(scheduler).replace('\n', '\n    ')))
+        print('    Scheduler: %s' % (str(scheduler).replace('\n', '\n    ')))
         print()
 
         print('    Model:')
