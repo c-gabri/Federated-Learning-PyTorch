@@ -108,12 +108,19 @@ other arguments:
 ```
 
 ## References
-* [1] [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedSGD, FedAvg
+* [1] [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629): FedSGD, FedAvg, MLP MNIST, CNN MNIST, CNN CIFAR-10
 * [2] [Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification](https://arxiv.org/abs/1909.06335): FedAvgM, Synthetic Non-Identical Client Data
 * [3] [Federated Visual Classification with Real-World Data Distribution](https://arxiv.org/abs/2003.08082): FedIR, FedVC
 * [4] [Federated Optimization in Heterogeneous Networks](https://arxiv.org/abs/1812.06127): FedProx
-* [5] [GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf): GhostModule
-* [6] [TensorFlow Convolutional Neural Network Tutorial (2016)](https://github.com/tensorflow/models/blob/86ecc9730d751c1f72e3bfecac958166390f4125/tutorials/image/cifar10/cifar10.py): LeNet5
+* [5] [TensorFlow Convolutional Neural Network Tutorial (2016)](https://github.com/tensorflow/models/blob/86ecc9730d751c1f72e3bfecac958166390f4125/tutorials/image/cifar10/cifar10.py): LeNet5
+* [6] [Gradient-Based Learning Applied to Document Recognition](https://axon.cs.byu.edu/~martinez/classes/678/Papers/Convolution_nets.pdf): Original LeNet5
+* [7] [GhostNet: More Features from Cheap Operations](https://arxiv.org/pdf/1911.11907.pdf): GhostNet, Ghost Module
+* [8] [Model Rubik’s Cube: Twisting Resolution, Depth and Width for TinyNets](https://arxiv.org/pdf/2010.14819.pdf): TinyNet
+* [9] [MnasNet: Platform-Aware Neural Architecture Search for Mobile](https://arxiv.org/pdf/1807.11626v3.pdf): MnasNet
+* [10] [Searching for MobileNetV3](https://arxiv.org/pdf/1905.02244.pdf): MobileNetV3
+* [11] [EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks](https://arxiv.org/pdf/1905.11946.pdf): EfficientNet
+* [12] [Group Normalization](https://arxiv.org/pdf/1803.08494.pdf): Group Normalization
+* [13] [The Non-IID Data Quagmire of Decentralized Machine Learning](https://arxiv.org/pdf/1910.00189.pdf): Group Normalization
 
 ## Screenshots
 <img src="screenshots/tensorboard1.png?raw=true" width="100%" title="Tensorboard: scalars and images">
