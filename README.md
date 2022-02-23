@@ -120,7 +120,7 @@ other arguments:
 * [10] [Searching for MobileNetV3](https://arxiv.org/pdf/1905.02244.pdf): MobileNetV3
 * [11] [EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks](https://arxiv.org/pdf/1905.11946.pdf): EfficientNet
 * [12] [Group Normalization](https://arxiv.org/pdf/1803.08494.pdf): Group Normalization
-* [13] [The Non-IID Data Quagmire of Decentralized Machine Learning](https://arxiv.org/pdf/1910.00189.pdf): Group Normalization
+* [13] [The Non-IID Data Quagmire of Decentralized Machine Learning](https://arxiv.org/pdf/1910.00189.pdf): Group Normalization for Federated Learning
 
 ## Screenshots
 <img src="screenshots/tensorboard1.png?raw=true" width="100%" title="Tensorboard: scalars and images">
