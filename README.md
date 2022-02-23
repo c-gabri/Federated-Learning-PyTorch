@@ -131,6 +131,7 @@ other arguments:
 </p>
 
 ## Future work ideas
+* [ ] Add docstrings and headers
 * [ ] Perform experiments and publish a report
 * [ ] Allow users to provide their own split
 * [ ] Allow Ghost Module and different normalization for all models
