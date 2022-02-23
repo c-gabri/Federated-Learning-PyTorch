@@ -130,11 +130,11 @@ other arguments:
   <img src="screenshots/output2.png?raw=true" width="32%" align="top" title="Output: training">
 </p>
 
-## Possible future work
-
+## Future work ideas
 * [ ] Perform experiments and publish a report
 * [ ] Allow users to provide their own split
 * [ ] Allow Ghost Module and different normalization for all models
+* [ ] K-fold cross-validation
 * [ ] Better metrics for unbalanced datasets
 * [ ] Beyond classification
 * [ ] Full implementation of mentioned FL papers
