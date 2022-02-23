@@ -1,5 +1,5 @@
-# Federated Visual Classification (PyTorch): FedSGD, FedAvg, FedAvgM, FedIR, FedVC, FedProx
-PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM, FedIR, FedVC and FedProx, applied to visual classification. Client distributions are synthesized with arbitrary non-identicalness and imbalance (Dirichlet priors). Client systems can be arbitrarily heterogeneous. Several mobile-friendly models are provided.
+# Federated Visual Classification (PyTorch): SGD, FedSGD, FedAvg, FedAvgM, FedIR, FedVC, FedProx
+PyTorch implementation of Federated Learning algorithms FedSGD, FedAvg, FedAvgM, FedIR, FedVC, FedProx and standard SGD, applied to visual classification. Client distributions are synthesized with arbitrary non-identicalness and imbalance (Dirichlet priors). Client systems can be arbitrarily heterogeneous. Several mobile-friendly models are provided.
 
 ## Disclaimer
 **Why Federated Learning is incompatible with privacy and why this is irrelevant for its success**
