@@ -34,6 +34,12 @@ class fixed(Scheduler):
     def step(self):
         pass
 
+    def state_dict(self):
+        return None
+
+    def load_state_dict(self, state_dict):
+        pass
+
 class step(lr_scheduler.StepLR, Scheduler):
    def __init__(self, optimizer, sched_args):
        super(step, self).__init__(optimizer, **sched_args)

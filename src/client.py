@@ -83,7 +83,7 @@ class Client(object):
         model.to(device)
         self.criterion.to(device)
         model.train()
-        model_old = deepcopy(model)
+        model_server = deepcopy(model)
         iter = 0
         for epoch in range(epochs):
             loss_sum, loss_num_images, num_images = 0., 0, 0
@@ -96,8 +96,10 @@ class Client(object):
                 if self.args.mu > 0 and epoch > 0:
                     # Add proximal term to loss (FedProx)
                     w_diff = torch.tensor(0., device=device)
-                    for w, w_t in zip(model_old.parameters(), model.parameters()):
-                        w_diff += torch.pow(torch.norm(w - w_t), 2)
+                    for w, w_t in zip(model.parameters(), model_server.parameters()):
+                        w_diff += torch.pow(torch.norm(w.data - w_t.data), 2)
+                        #w.grad.data += self.args.mu * (w.data - w_t.data)
+                        w.grad.data += self.args.mu * (w_t.data - w.data)
                     loss += self.args.mu / 2. * w_diff
 
                 loss_sum += loss.item() * len(labels)
@@ -124,9 +126,9 @@ class Client(object):
                 iter += 1
 
         # Compute model update
-        model_update = deepcopy(model_old.state_dict())
-        for key in model_update.keys():
-            model_update[key] = torch.sub(model_update[key], model.state_dict()[key])
+        model_update = {}
+        for key in model.state_dict():
+            model_update[key] = torch.sub(model_server.state_dict()[key], model.state_dict()[key])
 
         return model_update, len(train_loader.dataset), iter, loss_running
 

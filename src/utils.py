@@ -131,29 +131,29 @@ def exp_details(args, model, datasets, splits):
         else:
             algo = 'FedAvg'
         if args.server_momentum:
-            algo = algo + 'M'
+            algo += 'M'
         if args.fedir:
-            algo = algo + ' + FedIR'
+            algo += ' + FedIR'
         if args.vc_size is not None:
-            algo = algo + ' + FedVC'
+            algo += ' + FedVC'
         if args.mu:
-            algo = algo + ' + FedProx'
+            algo += ' + FedProx'
+        if args.drop_stragglers:
+            algo += ' (Drop Stragglers)'
 
     f = io.StringIO()
     with redirect_stdout(f):
         print('Experiment summary:')
-        print(f'    Algorithm ({algo}):')
+        print(f'    Algorithm:')
+        print(f'        Algorithm: {algo}')
         print(f'        ' + (f'Rounds: {args.rounds}' if args.iters is None else f'Iterations: {args.iters}'))
         print(f'        Clients: {args.num_clients}')
         print(f'        Fraction of clients: {args.frac_clients}')
         print(f'        Client epochs: {args.epochs}')
         print(f'        Training batch size: {args.train_bs}')
         print(f'        System heterogeneity: {args.hetero}')
-        print(f'        Drop stragglers: {args.drop_stragglers}')
         print(f'        Server learning rate: {args.server_lr}')
         print(f'        Server momentum (FedAvgM): {args.server_momentum}')
-        #print(f'        FedSGD: {args.fedsgd}')
-        #print(f'        FedIR: {args.fedir}')
         print(f'        Virtual client size (FedVC): {args.vc_size}')
         print(f'        Mu (FedProx): {args.mu}')
         print()

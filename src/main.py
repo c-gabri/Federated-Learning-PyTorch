@@ -23,6 +23,7 @@ from copy import deepcopy
 from os import environ
 from time import time
 from datetime import timedelta
+from collections import defaultdict
 
 import numpy as np
 import torch
@@ -50,10 +51,12 @@ if __name__ == '__main__':
         checkpoint = torch.load(f'save/{args.name}')
         rounds = args.rounds
         iters = args.iters
+        device =args.device
         args = checkpoint['args']
+        args.resume = True
         args.rounds = rounds
         args.iters = iters
-        args.resume = True
+        args.device = device
 
     ## Initialize RNGs and ensure reproducibility
     if args.seed is not None:
@@ -90,20 +93,18 @@ if __name__ == '__main__':
     acc_types = ['train', 'test'] if datasets_actual['valid'] is None else ['train', 'valid']
 
     # Load model
-    if not args.resume:
-        num_classes = len(datasets_actual['train'].classes)
-        num_channels = datasets_actual['train'][0][0].shape[0]
-        model = getattr(models, args.model)(num_classes, num_channels, args.model_args).to(args.device)
-    else:
-        model = checkpoint['model']
+    num_classes = len(datasets_actual['train'].classes)
+    num_channels = datasets_actual['train'][0][0].shape[0]
+    model = getattr(models, args.model)(num_classes, num_channels, args.model_args).to(args.device)
+    if args.resume:
+        model.load_state_dict(checkpoint['model_state_dict'])
 
     # Load optimizer and scheduler
-    if not args.resume:
-        optim = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
-        sched = getattr(schedulers, args.sched)(optim, args.sched_args)
-    else:
-        optim = checkpoint['optim']
-        sched = checkpoint['sched']
+    optim = getattr(optimizers, args.optim)(model.parameters(), args.optim_args)
+    sched = getattr(schedulers, args.sched)(optim, args.sched_args)
+    if args.resume:
+        optim.load_state_dict(checkpoint['optim_state_dict'])
+        sched.load_state_dict(checkpoint['sched_state_dict'])
 
     # Create clients
     if not args.resume:
@@ -188,6 +189,7 @@ if __name__ == '__main__':
             if not args.quiet: print(f'        Client: {client_id} ({i+1}/{m})')
 
             client_model = deepcopy(model)
+            optim.__setstate__({'state': defaultdict(dict)})
             optim.param_groups[0]['params'] = list(client_model.parameters())
 
             client_update, client_num_examples, client_num_iters, client_loss = clients[client_id].train(model=client_model, optim=optim, device=args.device)
@@ -210,10 +212,12 @@ if __name__ == '__main__':
             else:
                 for key in v.keys():
                     v[key] = update_avg[key] + v[key] * args.server_momentum
-            new_weights = deepcopy(model.state_dict())
-            for key in new_weights.keys():
-                new_weights[key] = new_weights[key] - v[key] * args.server_lr
-            model.load_state_dict(new_weights)
+            #new_weights = deepcopy(model.state_dict())
+            #for key in new_weights.keys():
+            #    new_weights[key] = new_weights[key] - v[key] * args.server_lr
+            #model.load_state_dict(new_weights)
+            for key in model.state_dict():
+                model.state_dict()[key] -= v[key] * args.server_lr
 
             # Compute round average loss and accuracies
             if round % args.server_stats_every == 0:
@@ -221,19 +225,20 @@ if __name__ == '__main__':
                 acc_avg = get_acc_avg(acc_types, clients, model, args.device)
 
                 if acc_avg[acc_types[1]] > acc_avg_best:
-                    print('        Saving checkpoint')
                     acc_avg_best = acc_avg[acc_types[1]]
-                    checkpoint['model'] = model
-                    checkpoint['optim'] = optim
-                    checkpoint['sched'] = sched
-                    checkpoint['last_round'] = round
-                    checkpoint['iter'] = iter
-                    checkpoint['v'] = v
-                    checkpoint['acc_avg_best'] = acc_avg_best
-                    checkpoint['torch_rng_state'] = torch.get_rng_state()
-                    checkpoint['numpy_rng_state'] = np.random.get_state()
-                    checkpoint['python_rng_state'] = random.getstate()
-                    torch.save(checkpoint, f'save/{args.name}')
+
+        # Save checkpoint
+        checkpoint['model_state_dict'] = model.state_dict()
+        checkpoint['optim_state_dict'] = optim.state_dict()
+        checkpoint['sched_state_dict'] = sched.state_dict()
+        checkpoint['last_round'] = round
+        checkpoint['iter'] = iter
+        checkpoint['v'] = v
+        checkpoint['acc_avg_best'] = acc_avg_best
+        checkpoint['torch_rng_state'] = torch.get_rng_state()
+        checkpoint['numpy_rng_state'] = np.random.get_state()
+        checkpoint['python_rng_state'] = random.getstate()
+        torch.save(checkpoint, f'save/{args.name}')
 
         # Print and log round stats
         if round % args.server_stats_every == 0:
