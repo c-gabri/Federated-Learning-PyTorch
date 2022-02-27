@@ -133,6 +133,8 @@ other arguments:
 ## Future work ideas
 * [ ] Add docstrings and headers
 * [ ] Perform experiments and publish a report
+* [ ] Better timing statistics
+* [ ] Use Dirichlet-multinomial distribution to obtain the split
 * [ ] Allow users to provide their own split
 * [ ] Allow Ghost Module and different normalization for all models
 * [ ] K-fold cross-validation
